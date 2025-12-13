@@ -9,9 +9,9 @@ import { useMode } from '@/context/mode-context';
 
 // Constants for model scaling behavior
 const MIN_SCALE = 0.1;
-const MAX_SCALE = 5.0;
+const MAX_SCALE = 100.0;
 const EASING_FACTOR = 0.3; // Controls animation smoothness
-const WHEEL_SCALE_STEP = 0.03; // Scale change per wheel tick
+const WHEEL_SCALE_STEP = 0.5; // Scale change per wheel tick
 const DEFAULT_SCALE = 1.0; // Default scale if not specified
 
 interface UseLive2DResizeProps {
