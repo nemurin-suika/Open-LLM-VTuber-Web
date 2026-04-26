@@ -23,6 +23,7 @@ interface AudioTaskOptions {
   sliceLength: number
   displayText?: DisplayText | null
   expressions?: string[] | number[] | null
+  gaze?: { x: number; y: number } | null
   speaker_uid?: string
   forwarded?: boolean
 }
@@ -80,7 +81,7 @@ export const useAudioTask = () => {
       return;
     }
 
-    const { audioBase64, displayText, expressions, forwarded } = options;
+    const { audioBase64, displayText, expressions, gaze, forwarded } = options;
 
     // Update display text
     if (displayText) {
@@ -133,6 +134,12 @@ export const useAudioTask = () => {
             lappAdapter,
             `Set expression to: ${expressions[0]}`,
           );
+        }
+
+        // Apply gaze direction if provided
+        if (gaze) {
+          const live2dManagerForGaze = (window as any).getLive2DManager?.();
+          live2dManagerForGaze?.onDrag(gaze.x, gaze.y);
         }
 
         // Start talk motion

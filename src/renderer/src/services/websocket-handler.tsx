@@ -163,6 +163,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             sliceLength: message.slice_length || 0,
             displayText: message.display_text || null,
             expressions: message.actions?.expressions || null,
+            gaze: message.actions?.gaze || null,
             forwarded: message.forwarded || false,
           });
         }
