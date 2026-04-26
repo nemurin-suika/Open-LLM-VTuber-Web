@@ -21,6 +21,7 @@ import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useGroup } from '@/context/group-context';
 import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
+import { stripLLMTags } from '@/utils/text-filter';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -124,7 +125,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         break;
       case 'full-text':
         if (message.text) {
-          setSubtitleText(message.text);
+          setSubtitleText(stripLLMTags(message.text));
         }
         break;
       case 'config-files':

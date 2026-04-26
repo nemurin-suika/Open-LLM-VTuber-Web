@@ -12,6 +12,7 @@ import { toaster } from '@/components/ui/toaster';
 import { useWebSocket } from '@/context/websocket-context';
 import { DisplayText } from '@/services/websocket-service';
 import { useLive2DExpression } from '@/hooks/canvas/use-live2d-expression';
+import { stripLLMTags } from '@/utils/text-filter';
 import * as LAppDefine from '../../../WebSDK/src/lappdefine';
 
 // Simple type alias for Live2D model
@@ -83,12 +84,13 @@ export const useAudioTask = () => {
 
     const { audioBase64, displayText, expressions, gaze, forwarded } = options;
 
-    // Update display text
+    // Update display text (strip LLM control tags before showing)
     if (displayText) {
-      appendText(displayText.text);
-      appendAI(displayText.text, displayText.name, displayText.avatar);
+      const cleanText = stripLLMTags(displayText.text);
+      appendText(cleanText);
+      appendAI(cleanText, displayText.name, displayText.avatar);
       if (audioBase64) {
-        updateSubtitle(displayText.text);
+        updateSubtitle(cleanText);
       }
       if (!forwarded) {
         sendMessage({
