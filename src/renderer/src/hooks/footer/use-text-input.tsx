@@ -5,6 +5,7 @@ import { useInterrupt } from '@/components/canvas/live2d';
 import { useChatHistory } from '@/context/chat-history-context';
 import { useVAD } from '@/context/vad-context';
 import { useMediaCapture } from '@/hooks/utils/use-media-capture';
+import { useProactiveSpeak } from '@/context/proactive-speak-context';
 
 export function useTextInput() {
   const [inputText, setInputText] = useState('');
@@ -15,9 +16,11 @@ export function useTextInput() {
   const { appendHumanMessage } = useChatHistory();
   const { stopMic, autoStopMic } = useVAD();
   const { captureAllMedia } = useMediaCapture();
+  const { resetIdleTimer } = useProactiveSpeak();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
+    resetIdleTimer();
   };
 
   const handleSend = async () => {

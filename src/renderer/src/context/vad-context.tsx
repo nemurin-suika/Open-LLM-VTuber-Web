@@ -9,6 +9,7 @@ import { audioTaskQueue } from '@/utils/task-queue';
 import { useSendAudio } from '@/hooks/utils/use-send-audio';
 import { SubtitleContext } from './subtitle-context';
 import { AiStateContext, AiState } from './ai-state-context';
+import { ProactiveSpeakContext } from './proactive-speak-context';
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { toaster } from '@/components/ui/toaster';
 
@@ -81,7 +82,7 @@ interface VADState {
 const DEFAULT_VAD_SETTINGS: VADSettings = {
   positiveSpeechThreshold: 50,
   negativeSpeechThreshold: 35,
-  redemptionFrames: 35,
+  redemptionFrames: 100,
 };
 
 const DEFAULT_VAD_STATE = {
@@ -112,7 +113,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
 
   // Persistent state management
   const [micOn, setMicOn] = useLocalStorage('micOn', DEFAULT_VAD_STATE.micOn);
-  const autoStopMicRef = useRef(true);
+  const autoStopMicRef = useRef(false);
   const [autoStopMic, setAutoStopMicState] = useLocalStorage(
     'autoStopMic',
     DEFAULT_VAD_STATE.autoStopMic,
@@ -140,6 +141,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   const { sendAudioPartition } = useSendAudio();
   const { setSubtitleText } = useContext(SubtitleContext)!;
   const { aiState, setAiState } = useContext(AiStateContext)!;
+  const proactiveSpeakContext = useContext(ProactiveSpeakContext);
 
   // Refs for callback stability
   const interruptRef = useRef(interrupt);
@@ -147,6 +149,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   const aiStateRef = useRef<AiState>(aiState);
   const setSubtitleTextRef = useRef(setSubtitleText);
   const setAiStateRef = useRef(setAiState);
+  const pauseIdleTimerRef = useRef(proactiveSpeakContext?.pauseIdleTimer);
 
   const isProcessingRef = useRef(false);
 
@@ -170,6 +173,10 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAiStateRef.current = setAiState;
   }, [setAiState]);
+
+  useEffect(() => {
+    pauseIdleTimerRef.current = proactiveSpeakContext?.pauseIdleTimer;
+  }, [proactiveSpeakContext?.pauseIdleTimer]);
 
   useEffect(() => {
     autoStopMicRef.current = autoStopMic;
@@ -199,6 +206,8 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     // Save current AI state but DON'T change to listening yet
     previousAiStateRef.current = aiStateRef.current;
     isProcessingRef.current = true;
+    // 음성 감지 즉시 proactive speak 타이머 중단 (경쟁 조건 방지)
+    pauseIdleTimerRef.current?.();
     // Don't change state here - wait for onSpeechRealStart
   }, []);
 

@@ -71,7 +71,9 @@
     "cameraControl": "Click to start camera",
     "cameraStopping": "Click to stop camera",
     "screenControl": "Click to start screen capture",
-    "screenStopping": "Click to stop screen capture"
+    "screenStopping": "Click to stop screen capture",
+    "volume": "Volume",
+    "volumeControl": "Volume Control"
   },
   "sidebar": {
     "camera": "Camera",

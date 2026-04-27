@@ -1,7 +1,7 @@
 /* eslint-disable no-sparse-arrays */
 /* eslint-disable react-hooks/exhaustive-deps */
 // eslint-disable-next-line object-curly-newline
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { wsService, MessageEvent } from '@/services/websocket-service';
 import {
@@ -23,6 +23,7 @@ import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
 import { resetGazeToCenter } from '@/utils/gaze-animator';
+import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -39,6 +40,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const [pendingModelInfo, setPendingModelInfo] = useState<ModelInfo | undefined>(undefined);
   const { setSelfUid, setGroupMembers, setIsOwner } = useGroup();
   const { startMic, stopMic, autoStartMicOnConvEnd } = useVAD();
+  const proactiveSpeakCtx = useContext(ProactiveSpeakContext);
   const autoStartMicOnConvEndRef = useRef(autoStartMicOnConvEnd);
   const { interrupt } = useInterrupt();
   const { setBrowserViewData } = useBrowser();
@@ -90,10 +92,16 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           resolve();
         }));
         break;
+      case 'speech-ignored':
+        // 키워드 없어서 무시된 음성 → 타이머를 재개(재시작 아님)하고 idle로 복귀
+        proactiveSpeakCtx?.markResume();
+        setAiState('idle');
+        startMic();
+        break;
       default:
         console.warn('Unknown control command:', controlText);
     }
-  }, [setAiState, clearResponse, setForceNewMessage, startMic, stopMic]);
+  }, [setAiState, clearResponse, setForceNewMessage, startMic, stopMic, proactiveSpeakCtx]);
 
   const handleWebSocketMessage = useCallback((message: MessageEvent) => {
     console.log('Received message from server:', message);

@@ -1,3 +1,6 @@
+const VOLUME_STORAGE_KEY = 'tts_volume';
+const DEFAULT_VOLUME = 0.2;
+
 /**
  * Global audio manager for handling audio playback and interruption
  * This ensures all components share the same audio reference
@@ -5,6 +8,24 @@
 class AudioManager {
   private currentAudio: HTMLAudioElement | null = null;
   private currentModel: any | null = null;
+  private volume: number;
+
+  constructor() {
+    const stored = localStorage.getItem(VOLUME_STORAGE_KEY);
+    this.volume = stored !== null ? parseFloat(stored) : DEFAULT_VOLUME;
+  }
+
+  getVolume(): number {
+    return this.volume;
+  }
+
+  setVolume(vol: number): void {
+    this.volume = Math.max(0, Math.min(1, vol));
+    localStorage.setItem(VOLUME_STORAGE_KEY, this.volume.toString());
+    if (this.currentAudio) {
+      this.currentAudio.volume = this.volume;
+    }
+  }
 
   /**
    * Set the current playing audio
@@ -12,6 +33,7 @@ class AudioManager {
   setCurrentAudio(audio: HTMLAudioElement, model: any) {
     this.currentAudio = audio;
     this.currentModel = model;
+    audio.volume = this.volume;
   }
 
   /**

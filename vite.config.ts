@@ -2,7 +2,10 @@ import { defineConfig, normalizePath } from 'vite';
 import path from 'path';
 import react from '@vitejs/plugin-react-swc';
 
-const createConfig = async (outDir: string) => ({
+const createConfig = async (outDir: string, isDev: boolean) => ({
+  define: isDev ? {
+    __DEV_BUILD_TIME__: JSON.stringify(Date.now().toString()),
+  } : {},
   plugins: [
     (await import('vite-plugin-static-copy')).viteStaticCopy({
       targets: [
@@ -64,9 +67,10 @@ const createConfig = async (outDir: string) => ({
   },
 });
 
-export default defineConfig(async ({ mode }) => {
+export default defineConfig(async ({ mode, command }) => {
+  const isDev = command === 'serve';
   if (mode === 'web') {
-    return createConfig('dist/web');
+    return createConfig('dist/web', isDev);
   }
-  return createConfig('dist/renderer');
+  return createConfig('dist/renderer', isDev);
 });

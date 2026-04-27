@@ -68,7 +68,9 @@
     "cameraControl": "点击启动摄像头",
     "cameraStopping": "点击停止摄像头",
     "screenControl": "点击开始屏幕共享",
-    "screenStopping": "点击停止屏幕共享"
+    "screenStopping": "点击停止屏幕共享",
+    "volume": "音量",
+    "volumeControl": "音量控制"
   },
   "sidebar": {
     "camera": "摄像头",

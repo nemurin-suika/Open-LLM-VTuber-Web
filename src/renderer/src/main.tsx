@@ -26,6 +26,16 @@ console.error = (...args: any[]) => {
   originalConsoleError.apply(console, args);
 };
 
+declare const __DEV_BUILD_TIME__: string | undefined;
+
+if (typeof __DEV_BUILD_TIME__ !== 'undefined') {
+  const stored = localStorage.getItem('__devBuildTime__');
+  if (stored !== __DEV_BUILD_TIME__) {
+    localStorage.clear();
+    localStorage.setItem('__devBuildTime__', __DEV_BUILD_TIME__);
+  }
+}
+
 if (typeof window !== 'undefined') {
   (window as any).getLAppAdapter = () => LAppAdapter.getInstance();
 
