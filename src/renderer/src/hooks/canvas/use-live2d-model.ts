@@ -10,6 +10,7 @@ import { updateModelConfig } from '../../../WebSDK/src/lappdefine';
 import { LAppDelegate } from '../../../WebSDK/src/lappdelegate';
 import { initializeLive2D } from '@cubismsdksamples/main';
 import { useMode } from '@/context/mode-context';
+import { wsService } from '@/services/websocket-service';
 
 interface UseLive2DModelProps {
   modelInfo: ModelInfo | undefined;
@@ -155,6 +156,87 @@ export const useLive2DModel = ({
     return { x: 0, y: 0 };
   }, []);
 
+  // Converts model matrix NDC coordinates to normalized screen position (0-1)
+  // and sends it to the backend so gaze calculation can use the real position.
+  const sendScreenPosition = useCallback(() => {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const adapter = (window as any).getLAppAdapter?.();
+    if (!adapter) return;
+    const model = adapter.getModel();
+    if (!model?._modelMatrix) return;
+
+    const matrix = model._modelMatrix.getArray();
+    // matrix[12], matrix[13] are the NDC position of the model's canvas origin.
+    // For models without a Layout section the origin sits at the canvas centre,
+    // so these values track the visual centre of the character.
+    const modelNdcX: number = matrix[12];
+    const modelNdcY: number = matrix[13];
+
+    // modelInfo.kScale is stored as (model_dict kScale * 2) by live2d-config-context.
+    // Divide by 2 to get the original kScale value for screen-fraction calculations.
+    const kScale: number = (modelInfo?.kScale ?? 1.0) / 2;
+
+    const rect = canvas.getBoundingClientRect();
+
+    // LAppLive2DManager applies projection.scale(height/width, 1.0) before rendering.
+    // This aspect-ratio correction scales the X axis by h/w (≈0.5625 for 16:9),
+    // so the actual rendered screen X differs from the raw NDC value.
+    // Y is unaffected (projYScale = 1.0).
+    const projXScale = canvas.height / canvas.width; // = h/w
+
+    // Compute viewport-relative CSS pixel positions using the projection-corrected NDC.
+    const viewportX = rect.left + (modelNdcX * projXScale + 1) / 2 * rect.width;
+    const viewportY = rect.top  + (1 - modelNdcY)             / 2 * rect.height;
+
+    // In pet mode the Electron window covers the entire virtual screen (all monitors).
+    // The canvas fills window.innerWidth × window.innerHeight (virtual screen in CSS px).
+    // viewportX/Y is already relative to the virtual screen top-left, so we normalise
+    // directly against window.innerWidth/Height — no window.screenX/Y offset needed.
+    //
+    // In window mode the canvas is smaller than the screen, so we normalise against
+    // window.screen.width/height (the physical screen) and add window.screenX/Y so
+    // the coordinate is in absolute screen space.
+    const isPetMode = window.innerWidth > window.screen.width || window.innerHeight > window.screen.height
+      || window.screenX !== 0 || window.screenY !== 0;
+
+    let normX: number;
+    let normY: number;
+    if (isPetMode) {
+      // Virtual screen coords: viewportX/Y go from 0 to window.innerWidth/Height
+      normX = viewportX / window.innerWidth;
+      normY = viewportY / window.innerHeight;
+    } else {
+      const screenX = window.screenX + viewportX;
+      const screenY = window.screenY + viewportY;
+      normX = screenX / window.screen.width;
+      normY = screenY / window.screen.height;
+    }
+    normX = Math.max(-1.0, Math.min(2.0, normX));
+    normY = Math.max(-1.0, Math.min(2.0, normY));
+
+    // normHeight is used by the backend to convert canvas-fraction eye offsets
+    // (eyeTopRatio, eyeLeftRatio) into screen-fraction offsets.
+    //
+    // setHeight(2.0) always makes canvas_height_ndc = 2.0, so:
+    //   eye_screen_offset = eyeTopRatio_canvas_offset × (rect.height / screen.height)
+    //
+    // In pet mode:  rect.height / screen.height = 1.0 (canvas IS the screen).
+    // In window mode: < 1.0 (canvas is smaller than the screen).
+    // kScale does NOT belong here — it affects visual size, not the canvas→screen mapping.
+    const normHeight = Math.max(0.05, Math.min(1.5, rect.height / window.screen.height));
+
+    wsService.sendMessage({ type: 'vtuber-screen-position', x: normX, y: normY, height: normHeight });
+    console.debug('[VTuber pos debug]', {
+      matrix: { m12: modelNdcX.toFixed(4), m13: modelNdcY.toFixed(4), m0: matrix[0].toFixed(4), m5: matrix[5].toFixed(4) },
+      canvas: { w: canvas.width, h: canvas.height, cssW: rect.width, cssH: rect.height },
+      window: { screenX: window.screenX, screenY: window.screenY, screenW: window.screen.width, screenH: window.screen.height, innerW: window.innerWidth, innerH: window.innerHeight },
+      computed: { canvasPixelX: canvasPixelX.toFixed(1), canvasPixelY: canvasPixelY.toFixed(1), viewportX: viewportX.toFixed(1), viewportY: viewportY.toFixed(1) },
+      result: { normX: normX.toFixed(3), normY: normY.toFixed(3), kScale },
+    });
+  }, [modelInfo?.kScale]);
+
   const setModelPosition = useCallback((x: number, y: number) => {
     const adapter = (window as any).getLAppAdapter?.();
     if (adapter) {
@@ -177,10 +259,11 @@ export const useLive2DModel = ({
       const currentPos = getModelPosition();
       modelPositionRef.current = currentPos;
       setPosition(currentPos);
+      sendScreenPosition();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [modelInfo?.url, getModelPosition]);
+  }, [modelInfo?.url, getModelPosition, sendScreenPosition]);
 
   const getCanvasScale = useCallback(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -349,6 +432,7 @@ export const useLive2DModel = ({
           modelPositionRef.current = finalPos;
           modelStartPos.current = finalPos; // Update base position for next potential drag
           setPosition(finalPos);
+          sendScreenPosition();
         }
       }
     } else if (isPotentialTapRef.current && adapter && model && view && canvasRef.current) {

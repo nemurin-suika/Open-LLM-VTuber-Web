@@ -13,6 +13,7 @@ import { useWebSocket } from '@/context/websocket-context';
 import { DisplayText } from '@/services/websocket-service';
 import { useLive2DExpression } from '@/hooks/canvas/use-live2d-expression';
 import { stripLLMTags } from '@/utils/text-filter';
+import { setGazeTarget, resetGazeToCenter } from '@/utils/gaze-animator';
 import * as LAppDefine from '../../../WebSDK/src/lappdefine';
 
 // Simple type alias for Live2D model
@@ -138,10 +139,9 @@ export const useAudioTask = () => {
           );
         }
 
-        // Apply gaze direction if provided
+        // Apply gaze direction (animated via gaze-animator, not instant snap)
         if (gaze) {
-          const live2dManagerForGaze = (window as any).getLive2DManager?.();
-          live2dManagerForGaze?.onDrag(gaze.x, gaze.y);
+          setGazeTarget(gaze.x, gaze.y);
         }
 
         // Start talk motion

@@ -22,6 +22,7 @@ import { useGroup } from '@/context/group-context';
 import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
+import { resetGazeToCenter } from '@/utils/gaze-animator';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -84,6 +85,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             }
             return currentState;
           });
+          // Smoothly return gaze to center after conversation ends
+          resetGazeToCenter();
           resolve();
         }));
         break;
@@ -171,7 +174,11 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         break;
       case 'history-data':
         if (message.messages) {
-          setMessages(message.messages);
+          setMessages(message.messages.map((msg) =>
+            msg.type !== 'tool_call_status' && msg.content
+              ? { ...msg, content: stripLLMTags(msg.content) }
+              : msg,
+          ));
         }
         toaster.create({
           title: t('notification.historyLoaded'),
