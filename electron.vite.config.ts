@@ -12,6 +12,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
+    define: {
+      __DEV_BUILD_TIME__: JSON.stringify(Date.now().toString()),
+    },
     resolve: {
       alias: {
         '@': resolve('src/renderer/src'),

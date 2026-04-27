@@ -5,7 +5,7 @@
  * head movement feels natural instead of snapping instantly.
  */
 
-const LERP_SPEED = 4.0;   // units per second (lower = slower)
+const LERP_SPEED = 2.0;   // units per second (lower = slower)
 const EPSILON    = 0.005; // stop animating when this close to target
 
 interface GazeState {
