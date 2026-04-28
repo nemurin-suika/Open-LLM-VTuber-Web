@@ -17,6 +17,7 @@ interface ProactiveSpeakContextType {
   resetIdleTimer: () => void
   pauseIdleTimer: () => void
   markResume: () => void
+  resumeIdleTimer: () => void
 }
 
 const defaultSettings: ProactiveSpeakSettings = {
@@ -143,7 +144,8 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
     resetIdleTimer,
     pauseIdleTimer,
     markResume,
-  }), [settings, updateSettings, resetIdleTimer, pauseIdleTimer, markResume]);
+    resumeIdleTimer: doResumeIdleTimer,
+  }), [settings, updateSettings, resetIdleTimer, pauseIdleTimer, markResume, doResumeIdleTimer]);
 
   return (
     <ProactiveSpeakContext.Provider value={contextValue}>

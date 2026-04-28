@@ -26,6 +26,8 @@ interface Position {
 const TAP_DURATION_THRESHOLD_MS = 200; // Max duration for a tap
 const DRAG_DISTANCE_THRESHOLD_PX = 5; // Min distance to be considered a drag
 
+const LIVE2D_POSITION_KEY = 'live2d_position';
+
 function parseModelUrl(url: string): { baseUrl: string; modelDir: string; modelFileName: string } {
   try {
     const urlObj = new URL(url);
@@ -256,14 +258,28 @@ export const useLive2DModel = ({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const currentPos = getModelPosition();
-      modelPositionRef.current = currentPos;
-      setPosition(currentPos);
+      const stored = localStorage.getItem(LIVE2D_POSITION_KEY);
+      if (stored) {
+        try {
+          const savedPos = JSON.parse(stored);
+          setModelPosition(savedPos.x, savedPos.y);
+          modelPositionRef.current = savedPos;
+          setPosition(savedPos);
+        } catch {
+          const currentPos = getModelPosition();
+          modelPositionRef.current = currentPos;
+          setPosition(currentPos);
+        }
+      } else {
+        const currentPos = getModelPosition();
+        modelPositionRef.current = currentPos;
+        setPosition(currentPos);
+      }
       sendScreenPosition();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [modelInfo?.url, getModelPosition, sendScreenPosition]);
+  }, [modelInfo?.url, getModelPosition, setModelPosition, sendScreenPosition]);
 
   const getCanvasScale = useCallback(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -432,6 +448,7 @@ export const useLive2DModel = ({
           modelPositionRef.current = finalPos;
           modelStartPos.current = finalPos; // Update base position for next potential drag
           setPosition(finalPos);
+          localStorage.setItem(LIVE2D_POSITION_KEY, JSON.stringify(finalPos));
           sendScreenPosition();
         }
       }

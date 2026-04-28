@@ -150,7 +150,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   const setSubtitleTextRef = useRef(setSubtitleText);
   const setAiStateRef = useRef(setAiState);
   const pauseIdleTimerRef = useRef(proactiveSpeakContext?.pauseIdleTimer);
-  const markResumeRef = useRef(proactiveSpeakContext?.markResume);
+  const resumeIdleTimerRef = useRef(proactiveSpeakContext?.resumeIdleTimer);
 
   const isProcessingRef = useRef(false);
 
@@ -177,8 +177,8 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     pauseIdleTimerRef.current = proactiveSpeakContext?.pauseIdleTimer;
-    markResumeRef.current = proactiveSpeakContext?.markResume;
-  }, [proactiveSpeakContext?.pauseIdleTimer, proactiveSpeakContext?.markResume]);
+    resumeIdleTimerRef.current = proactiveSpeakContext?.resumeIdleTimer;
+  }, [proactiveSpeakContext?.pauseIdleTimer, proactiveSpeakContext?.resumeIdleTimer]);
 
   useEffect(() => {
     autoStopMicRef.current = autoStopMic;
@@ -265,10 +265,12 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     setPreviousTriggeredProbability(0);
     isProcessingRef.current = false;
 
-    // 타이머가 pauseIdleTimer로 중단됐으므로 fresh restart 대신 남은 시간부터 재개
-    markResumeRef.current?.();
+    // idle 중 misfire라면 타이머를 남은 시간부터 직접 재개
+    // (setAiState('idle')가 이미 idle → React useEffect 미실행 → markResume 방식은 동작 안 함)
+    if (previousAiStateRef.current === 'idle') {
+      resumeIdleTimerRef.current?.();
+    }
 
-    // Restore previous AI state and show helpful misfire message
     setAiStateRef.current(previousAiStateRef.current);
     setSubtitleTextRef.current(t('error.vadMisfire'));
   }, [t]);

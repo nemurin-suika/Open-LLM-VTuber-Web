@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useMode } from '@/context/mode-context';
 interface Position {
   x: number
@@ -21,10 +21,29 @@ export function useDraggable({ componentId }: UseDraggableProps) {
   // Track if the element is currently being dragged
   const [isDragging, setIsDragging] = useState(false);
 
+  const storageKey = `draggable_position_${componentId}`;
+
+  // Load saved position from localStorage
+  const loadSavedPosition = (): Position => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? JSON.parse(stored) : { x: 0, y: 0 };
+    } catch {
+      return { x: 0, y: 0 };
+    }
+  };
+
   // Refs to store position data that persists between renders
-  const positionRef = useRef<Position>({ x: 0, y: 0 });
+  const positionRef = useRef<Position>(loadSavedPosition());
   const dragStartRef = useRef<Position>({ x: 0, y: 0 });
   const elementRef = useRef<HTMLDivElement>(null);
+
+  // Apply saved position on mount
+  useEffect(() => {
+    if (elementRef.current && (positionRef.current.x !== 0 || positionRef.current.y !== 0)) {
+      elementRef.current.style.transform = `translateX(-50%) translate(${positionRef.current.x}px, ${positionRef.current.y}px)`;
+    }
+  }, []);
 
   /**
    * Handle mouse enter event for pet mode
@@ -81,6 +100,7 @@ export function useDraggable({ componentId }: UseDraggableProps) {
      */
     const handleMouseUp = () => {
       setIsDragging(false);
+      localStorage.setItem(storageKey, JSON.stringify(positionRef.current));
       // Clean up event listeners
       document.removeEventListener('mousemove', handleMouseMove, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
