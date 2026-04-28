@@ -150,6 +150,7 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
   const setSubtitleTextRef = useRef(setSubtitleText);
   const setAiStateRef = useRef(setAiState);
   const pauseIdleTimerRef = useRef(proactiveSpeakContext?.pauseIdleTimer);
+  const markResumeRef = useRef(proactiveSpeakContext?.markResume);
 
   const isProcessingRef = useRef(false);
 
@@ -176,7 +177,8 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     pauseIdleTimerRef.current = proactiveSpeakContext?.pauseIdleTimer;
-  }, [proactiveSpeakContext?.pauseIdleTimer]);
+    markResumeRef.current = proactiveSpeakContext?.markResume;
+  }, [proactiveSpeakContext?.pauseIdleTimer, proactiveSpeakContext?.markResume]);
 
   useEffect(() => {
     autoStopMicRef.current = autoStopMic;
@@ -262,6 +264,9 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     console.log('VAD misfire detected');
     setPreviousTriggeredProbability(0);
     isProcessingRef.current = false;
+
+    // 타이머가 pauseIdleTimer로 중단됐으므로 fresh restart 대신 남은 시간부터 재개
+    markResumeRef.current?.();
 
     // Restore previous AI state and show helpful misfire message
     setAiStateRef.current(previousAiStateRef.current);
