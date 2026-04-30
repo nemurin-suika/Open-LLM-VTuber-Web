@@ -14,6 +14,7 @@ import { DisplayText } from '@/services/websocket-service';
 import { useLive2DExpression } from '@/hooks/canvas/use-live2d-expression';
 import { stripLLMTags } from '@/utils/text-filter';
 import { setGazeTarget, resetGazeToCenter } from '@/utils/gaze-animator';
+import { setMovementTarget, addMovementDelta, setScaleTarget } from '@/utils/model-movement-animator';
 import * as LAppDefine from '../../../WebSDK/src/lappdefine';
 
 // Simple type alias for Live2D model
@@ -26,6 +27,8 @@ interface AudioTaskOptions {
   displayText?: DisplayText | null
   expressions?: string[] | number[] | null
   gaze?: { x: number; y: number } | null
+  movement?: { x: number; y: number } | null
+  model_scale?: number | null
   speaker_uid?: string
   forwarded?: boolean
 }
@@ -83,7 +86,7 @@ export const useAudioTask = () => {
       return;
     }
 
-    const { audioBase64, displayText, expressions, gaze, forwarded } = options;
+    const { audioBase64, displayText, expressions, gaze, movement, model_scale, forwarded } = options;
 
     // Update display text (strip LLM control tags before showing)
     if (displayText) {
@@ -103,6 +106,24 @@ export const useAudioTask = () => {
     }
 
     try {
+      // Apply Live2D actions regardless of whether audio is present.
+      // (Tag-only sentences produce no audio but still carry valid actions.)
+      {
+        const lappAdapter = (window as any).getLAppAdapter?.();
+        if (lappAdapter && expressions?.[0] !== undefined) {
+          setExpression(expressions[0], lappAdapter, `Set expression to: ${expressions[0]}`);
+        }
+        if (gaze) setGazeTarget(gaze.x, gaze.y);
+        if (movement) {
+          if ('dx' in movement) {
+            addMovementDelta(movement.dx, movement.dy);  // relative delta
+          } else {
+            setMovementTarget(movement.x, movement.y);   // absolute (move_center)
+          }
+        }
+        if (model_scale != null) setScaleTarget(model_scale);
+      }
+
       // Process audio if available
       if (audioBase64) {
         const audioDataUrl = `data:audio/wav;base64,${audioBase64}`;
@@ -127,21 +148,6 @@ export const useAudioTask = () => {
           console.warn('Model does not have _wavFileHandler for lip sync');
         } else {
           console.log('Model has _wavFileHandler available');
-        }
-
-        // Set expression if available
-        const lappAdapter = (window as any).getLAppAdapter?.();
-        if (lappAdapter && expressions?.[0] !== undefined) {
-          setExpression(
-            expressions[0],
-            lappAdapter,
-            `Set expression to: ${expressions[0]}`,
-          );
-        }
-
-        // Apply gaze direction (animated via gaze-animator, not instant snap)
-        if (gaze) {
-          setGazeTarget(gaze.x, gaze.y);
         }
 
         // Start talk motion

@@ -176,6 +176,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             displayText: message.display_text || null,
             expressions: message.actions?.expressions || null,
             gaze: message.actions?.gaze || null,
+            movement: message.actions?.movement || null,
+            model_scale: message.actions?.model_scale ?? null,
             forwarded: message.forwarded || false,
           });
         }

@@ -1,5 +1,5 @@
 import {
-  LuBell, LuSend, LuMic, LuMicOff, LuHand, LuX,
+  LuBell, LuSend, LuMic, LuMicOff, LuHand, LuX, LuCrosshair,
 } from 'react-icons/lu';
 import {
   Box,
@@ -16,6 +16,7 @@ import { useInputSubtitle } from '@/hooks/electron/use-input-subtitle';
 import { useDraggable } from '@/hooks/electron/use-draggable';
 import { inputSubtitleStyles } from './electron-style';
 import { useMode } from '@/context/mode-context';
+import { resetModelToCenter } from '@/utils/model-movement-animator';
 
 export function InputSubtitle() {
   const {
@@ -141,6 +142,16 @@ export function InputSubtitle() {
               >
                 <LuHand size={16} />
               </IconButton>
+              {isPet && (
+                <IconButton
+                  aria-label="Reset model to center"
+                  onClick={resetModelToCenter}
+                  title="Reset model position and scale to center"
+                  {...inputSubtitleStyles.iconButton}
+                >
+                  <LuCrosshair size={16} />
+                </IconButton>
+              )}
             </Flex>
           </Flex>
         </Box>

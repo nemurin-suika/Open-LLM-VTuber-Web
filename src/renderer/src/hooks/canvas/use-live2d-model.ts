@@ -11,6 +11,7 @@ import { LAppDelegate } from '../../../WebSDK/src/lappdelegate';
 import { initializeLive2D } from '@cubismsdksamples/main';
 import { useMode } from '@/context/mode-context';
 import { wsService } from '@/services/websocket-service';
+import { setBaseScale, syncCurrentPosition } from '@/utils/model-movement-animator';
 
 interface UseLive2DModelProps {
   modelInfo: ModelInfo | undefined;
@@ -257,29 +258,52 @@ export const useLive2DModel = ({
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const stored = localStorage.getItem(LIVE2D_POSITION_KEY);
-      if (stored) {
-        try {
-          const savedPos = JSON.parse(stored);
+    // Poll until the model is fully loaded after initializeLive2D(), then restore position.
+    // initializeLive2D() is called 500ms after URL change, so the model may not be ready
+    // at 500ms — polling avoids the race condition.
+    const stored = localStorage.getItem(LIVE2D_POSITION_KEY);
+    let savedPos: Position | null = null;
+    if (stored) {
+      try { savedPos = JSON.parse(stored); } catch { /* ignore */ }
+    }
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30; // up to ~3s total
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const tryApply = () => {
+      const adapter = (window as any).getLAppAdapter?.();
+      const model = adapter?.getModel();
+
+      if (model?._modelMatrix) {
+        if (savedPos) {
           setModelPosition(savedPos.x, savedPos.y);
           modelPositionRef.current = savedPos;
           setPosition(savedPos);
-        } catch {
+        } else {
           const currentPos = getModelPosition();
           modelPositionRef.current = currentPos;
           setPosition(currentPos);
         }
-      } else {
-        const currentPos = getModelPosition();
-        modelPositionRef.current = currentPos;
-        setPosition(currentPos);
+        sendScreenPosition();
+        if (modelInfo?.kScale != null) {
+          setBaseScale(modelInfo.kScale);
+        }
+        // Sync movement animator with the actual restored position so that
+        // the first delta-move doesn't snap through (0, 0) first.
+        const restoredPos = savedPos ?? getModelPosition();
+        syncCurrentPosition(restoredPos.x, restoredPos.y);
+      } else if (attempts < MAX_ATTEMPTS) {
+        attempts += 1;
+        timerId = setTimeout(tryApply, 100);
       }
-      sendScreenPosition();
-    }, 500);
+    };
 
-    return () => clearTimeout(timer);
-  }, [modelInfo?.url, getModelPosition, setModelPosition, sendScreenPosition]);
+    // Start polling 600ms after URL change (initializeLive2D fires at 500ms)
+    timerId = setTimeout(tryApply, 600);
+
+    return () => clearTimeout(timerId);
+  }, [modelInfo?.url, modelInfo?.kScale, getModelPosition, setModelPosition, sendScreenPosition]);
 
   const getCanvasScale = useCallback(() => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;

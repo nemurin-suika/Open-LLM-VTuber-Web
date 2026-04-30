@@ -47,6 +47,8 @@ export interface Actions {
   pictures?: string[];
   sounds?: string[];
   gaze?: { x: number; y: number };
+  movement?: { dx: number; dy: number } | { x: number; y: number };
+  model_scale?: number;
 }
 
 export interface MessageEvent {
