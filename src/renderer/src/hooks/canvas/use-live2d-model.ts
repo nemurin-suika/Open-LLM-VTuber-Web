@@ -11,7 +11,10 @@ import { LAppDelegate } from '../../../WebSDK/src/lappdelegate';
 import { initializeLive2D } from '@cubismsdksamples/main';
 import { useMode } from '@/context/mode-context';
 import { wsService } from '@/services/websocket-service';
-import { setBaseScale, syncCurrentPosition } from '@/utils/model-movement-animator';
+import { setBaseScale, syncCurrentPosition, setHomePosition } from '@/utils/model-movement-animator';
+import { applyScale } from '@/hooks/canvas/use-live2d-resize';
+
+const LIVE2D_SCALE_KEY = 'live2d_scale';
 
 interface UseLive2DModelProps {
   modelInfo: ModelInfo | undefined;
@@ -286,9 +289,13 @@ export const useLive2DModel = ({
           setPosition(currentPos);
         }
         sendScreenPosition();
-        if (modelInfo?.kScale != null) {
-          setBaseScale(modelInfo.kScale);
-        }
+
+        // Restore saved scale (from scroll-to-resize), falling back to kScale
+        const savedScaleStr = localStorage.getItem(LIVE2D_SCALE_KEY);
+        const restoredScale = savedScaleStr ? JSON.parse(savedScaleStr) : (modelInfo?.kScale ?? 1);
+        applyScale(restoredScale);
+        setBaseScale(restoredScale);
+
         // Sync movement animator with the actual restored position so that
         // the first delta-move doesn't snap through (0, 0) first.
         const restoredPos = savedPos ?? getModelPosition();
@@ -473,6 +480,7 @@ export const useLive2DModel = ({
           modelStartPos.current = finalPos; // Update base position for next potential drag
           setPosition(finalPos);
           localStorage.setItem(LIVE2D_POSITION_KEY, JSON.stringify(finalPos));
+          setHomePosition(finalPos.x, finalPos.y);  // update return-to-home target
           sendScreenPosition();
         }
       }

@@ -23,6 +23,7 @@ import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
 import { resetGazeToCenter } from '@/utils/gaze-animator';
+import { returnToHome } from '@/utils/model-movement-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
@@ -87,8 +88,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             }
             return currentState;
           });
-          // Smoothly return gaze to center after conversation ends
+          // Smoothly return gaze to center and body to home position
           resetGazeToCenter();
+          returnToHome();
           resolve();
         }));
         break;

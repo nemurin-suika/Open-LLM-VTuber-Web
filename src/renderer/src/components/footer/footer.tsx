@@ -13,6 +13,8 @@ import {
   PopoverRoot, PopoverTrigger, PopoverContent, PopoverBody, PopoverArrow,
 } from '@/components/ui/popover';
 import { audioManager } from '@/utils/audio-manager';
+import { resetModelToCenter } from '@/utils/model-movement-animator';
+import { LuCrosshair } from 'react-icons/lu';
 import { footerStyles } from './footer-styles';
 import AIStateIndicator from './ai-state-indicator';
 import { useFooter } from '@/hooks/footer/use-footer';
@@ -194,6 +196,15 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
                 onInterrupt={handleInterrupt}
               />
               <VolumeControl volume={volume} onVolumeChange={handleVolumeChange} />
+              <IconButton
+                aria-label="Reset model position"
+                bg="gray.600"
+                title="Reset model position and scale to center"
+                onClick={resetModelToCenter}
+                {...footerStyles.footer.actionButton}
+              >
+                <LuCrosshair size="20" />
+              </IconButton>
             </HStack>
           </Box>
 

@@ -14,6 +14,7 @@ const EPSILON     = 0.003;
 interface State {
   curX: number; curY: number;
   targetX: number; targetY: number;
+  homeX: number; homeY: number;    // user's dragged/saved position (return target)
   curScale: number; targetScale: number;
   baseScale: number;   // reference kScale (modelInfo.kScale from SDK)
   rafId: number | null;
@@ -23,6 +24,7 @@ interface State {
 const state: State = {
   curX: 0, curY: 0,
   targetX: 0, targetY: 0,
+  homeX: 0, homeY: 0,
   curScale: 1, targetScale: 1,
   baseScale: 1,
   rafId: null,
@@ -164,6 +166,8 @@ export function syncCurrentPosition(x: number, y: number) {
   state.curY    = y;
   state.targetX = x;
   state.targetY = y;
+  state.homeX   = x;
+  state.homeY   = y;
 }
 
 /** Reset model to center + original scale (for the reset button). */
@@ -171,5 +175,25 @@ export function resetModelToCenter() {
   state.targetX     = 0;
   state.targetY     = 0;
   state.targetScale = state.baseScale;
+  // Also update home so the next returnToHome goes to center
+  state.homeX = 0;
+  state.homeY = 0;
+  ensureRunning();
+}
+
+/**
+ * Record the user's intentional position (set after drag or position restore).
+ * returnToHome() will animate back to this position after AI movements.
+ */
+export function setHomePosition(x: number, y: number) {
+  state.homeX = x;
+  state.homeY = y;
+}
+
+/** Animate the model back to the user's home (dragged) position. */
+export function returnToHome() {
+  syncIfIdle();
+  state.targetX = state.homeX;
+  state.targetY = state.homeY;
   ensureRunning();
 }

@@ -2,6 +2,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable no-underscore-dangle */
 import { useEffect, useCallback, RefObject, useRef } from 'react';
+import { setBaseScale } from '@/utils/model-movement-animator';
+
+const LIVE2D_SCALE_KEY = 'live2d_scale';
 import { ModelInfo } from '@/context/live2d-config-context';
 import { LAppDelegate } from '../../../WebSDK/src/lappdelegate';
 import { LAppLive2DManager } from '../../../WebSDK/src/lapplive2dmanager';
@@ -57,6 +60,7 @@ export const useLive2DResize = ({
   // Initialize scale references
   const initialScale = modelInfo?.kScale || DEFAULT_SCALE;
   const lastScaleRef = useRef<number>(initialScale);
+  const saveScaleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const targetScaleRef = useRef<number>(initialScale);
   const animationFrameRef = useRef<number>();
   const isAnimatingRef = useRef<boolean>(false);
@@ -132,6 +136,13 @@ export const useLive2DResize = ({
       isAnimatingRef.current = true;
       animationFrameRef.current = requestAnimationFrame(animateEase);
     }
+
+    // Debounce-save the scale so it persists across restarts
+    if (saveScaleTimerRef.current) clearTimeout(saveScaleTimerRef.current);
+    saveScaleTimerRef.current = setTimeout(() => {
+      localStorage.setItem(LIVE2D_SCALE_KEY, JSON.stringify(newTargetScale));
+      setBaseScale(newTargetScale);  // keep movement animator in sync
+    }, 600);
   }, [modelInfo?.scrollToResize, animateEase]);
 
   /**
