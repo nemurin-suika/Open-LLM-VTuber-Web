@@ -25,9 +25,8 @@ export function useTextInput() {
 
   const handleSend = async () => {
     if (!inputText.trim() || !wsContext) return;
-    if (aiState === 'thinking-speaking') {
-      interrupt();
-    }
+    // Removed: auto-interrupt when AI is speaking.
+    // Text input is now queued and plays after the current output.
 
     const images = await captureAllMedia();
 
