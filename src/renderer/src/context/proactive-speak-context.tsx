@@ -22,7 +22,7 @@ interface ProactiveSpeakContextType {
 
 const defaultSettings: ProactiveSpeakSettings = {
   allowProactiveSpeak: true,
-  idleSecondsToSpeak: 30,
+  idleSecondsToSpeak: 20,
   allowButtonTrigger: false,
 };
 
