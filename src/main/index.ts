@@ -1,8 +1,30 @@
 /* eslint-disable no-shadow */
+import fs from 'fs';
+import path from 'path';
 import { app, ipcMain, globalShortcut, desktopCapturer } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
 import { WindowManager } from "./window-manager";
 import { MenuManager } from "./menu-manager";
+
+const LOG_PREFIXES = ['[WS]', '[Handler]', '[AudioTask]', '[TaskQueue]', '[AudioManager]'];
+const LEVEL_LABELS = ['verbose', 'info', 'warning', 'error'];
+
+function setupRendererLogger(webContents: Electron.WebContents): void {
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  fs.mkdirSync(logDir, { recursive: true });
+  const logFile = path.join(logDir, `vtube-${new Date().toISOString().slice(0, 10)}.log`);
+
+  process.stdout.write(`[Main] Log file: ${logFile}\n`);
+
+  webContents.on('console-message', (_event, level, message) => {
+    if (!LOG_PREFIXES.some((p) => message.includes(p))) return;
+    const timestamp = new Date().toISOString();
+    const label = LEVEL_LABELS[level] ?? 'info';
+    const line = `${timestamp} [${label}] ${message}\n`;
+    process.stdout.write(line);
+    fs.appendFileSync(logFile, line);
+  });
+}
 
 let windowManager: WindowManager;
 let menuManager: MenuManager;
@@ -86,6 +108,7 @@ app.whenReady().then(() => {
       height: 30,
     },
   });
+  setupRendererLogger(window.webContents);
   menuManager.createTray();
 
   window.on("close", (event) => {

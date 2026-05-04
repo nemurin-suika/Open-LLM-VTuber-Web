@@ -155,15 +155,21 @@ class WebSocketService {
       this.ws.onopen = () => {
         this.currentState = 'OPEN';
         this.stateSubject.next('OPEN');
+        console.log(`[WS] Connected to ${url}`);
         this.initializeConnection();
       };
 
       this.ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          if (message.type !== 'audio') {
+            console.log(`[WS] Received message type: ${message.type}`);
+          } else {
+            console.log(`[WS] Received audio message, text: "${message.display_text?.text ?? '(none)'}", hasAudio: ${!!message.audio}`);
+          }
           this.messageSubject.next(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('[WS] Failed to parse WebSocket message:', error, 'raw:', event.data?.slice?.(0, 200));
           toaster.create({
             title: `${getTranslation()('error.failedParseWebSocket')}: ${error}`,
             type: "error",
@@ -172,14 +178,16 @@ class WebSocketService {
         }
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event) => {
         this.currentState = 'CLOSED';
         this.stateSubject.next('CLOSED');
+        console.warn(`[WS] Connection closed. code=${event.code} reason="${event.reason}" wasClean=${event.wasClean}`);
       };
 
-      this.ws.onerror = () => {
+      this.ws.onerror = (event) => {
         this.currentState = 'CLOSED';
         this.stateSubject.next('CLOSED');
+        console.error('[WS] Connection error:', event);
       };
     } catch (error) {
       console.error('Failed to connect to WebSocket:', error);

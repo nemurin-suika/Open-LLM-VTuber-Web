@@ -79,9 +79,12 @@ export const useAudioTask = () => {
       appendAIMessage: appendAI,
     } = stateRef.current;
 
+    const label = `"${options.displayText?.text ?? '(no text)'}"`;
+    console.log(`[AudioTask] handleAudioPlayback start — ${label}, aiState="${currentAiState}", hasAudio=${!!options.audioBase64}`);
+
     // Skip if already interrupted
     if (currentAiState === 'interrupted') {
-      console.warn('Audio playback blocked by interruption state.');
+      console.warn(`[AudioTask] Blocked by interruption — ${label}`);
       resolve();
       return;
     }
@@ -131,44 +134,38 @@ export const useAudioTask = () => {
         // Get Live2D manager and model
         const live2dManager = (window as any).getLive2DManager?.();
         if (!live2dManager) {
-          console.error('Live2D manager not found');
+          console.error(`[AudioTask] Live2D manager not found — ${label}`);
           resolve();
           return;
         }
 
         const model = live2dManager.getModel(0);
         if (!model) {
-          console.error('Live2D model not found at index 0');
+          console.error(`[AudioTask] Live2D model not found at index 0 — ${label}`);
           resolve();
           return;
         }
-        console.log('Found model for audio playback');
 
         if (!model._wavFileHandler) {
-          console.warn('Model does not have _wavFileHandler for lip sync');
-        } else {
-          console.log('Model has _wavFileHandler available');
+          console.warn(`[AudioTask] Model has no _wavFileHandler (lip sync disabled) — ${label}`);
         }
 
         // Start talk motion
         if (LAppDefine && LAppDefine.PriorityNormal) {
-          console.log("Starting random 'Talk' motion");
-          model.startRandomMotion(
-            "Talk",
-            LAppDefine.PriorityNormal,
-          );
+          model.startRandomMotion("Talk", LAppDefine.PriorityNormal);
         } else {
-          console.warn("LAppDefine.PriorityNormal not found - cannot start talk motion");
+          console.warn('[AudioTask] LAppDefine.PriorityNormal not found — cannot start talk motion');
         }
 
         // Setup audio element
         const audio = new Audio(audioDataUrl);
-        
+
         // Register with global audio manager IMMEDIATELY after creating audio
         audioManager.setCurrentAudio(audio, model);
         let isFinished = false;
 
-        const cleanup = () => {
+        const cleanup = (reason: string) => {
+          console.log(`[AudioTask] cleanup(${reason}) — ${label}`);
           audioManager.clearCurrentAudio(audio);
           if (!isFinished) {
             isFinished = true;
@@ -176,27 +173,37 @@ export const useAudioTask = () => {
           }
         };
 
+        // Timeout guard: if canplaythrough never fires, unblock the queue
+        const canplaythroughTimeout = setTimeout(() => {
+          if (!isFinished) {
+            console.error(`[AudioTask] canplaythrough timed out after 10s — ${label}. Skipping.`);
+            cleanup('canplaythrough-timeout');
+          }
+        }, 10000);
+
         // Enhance lip sync sensitivity
         const lipSyncScale = 2.0;
 
         audio.addEventListener('canplaythrough', () => {
+          clearTimeout(canplaythroughTimeout);
           // Check for interruption before playback
           if (stateRef.current.aiState === 'interrupted' || !audioManager.hasCurrentAudio()) {
-            console.warn('Audio playback cancelled due to interruption or audio was stopped');
-            cleanup();
+            console.warn(`[AudioTask] Cancelled before play (interrupted or stopped) — ${label}`);
+            cleanup('pre-play-cancelled');
             return;
           }
 
-          console.log('Starting audio playback with lip sync');
-          audio.play().catch((err) => {
-            console.error("Audio play error:", err);
-            cleanup();
+          console.log(`[AudioTask] canplaythrough — starting play — ${label}`);
+          audio.play().then(() => {
+            console.log(`[AudioTask] play() resolved — ${label}`);
+          }).catch((err) => {
+            console.error(`[AudioTask] play() rejected — ${label}`, err);
+            cleanup('play-error');
           });
 
           // Setup lip sync
           if (model._wavFileHandler) {
             if (!model._wavFileHandler._initialized) {
-              console.log('Applying enhanced lip sync');
               model._wavFileHandler._initialized = true;
 
               const originalUpdate = model._wavFileHandler.update.bind(model._wavFileHandler);
@@ -211,27 +218,31 @@ export const useAudioTask = () => {
             if (audioManager.hasCurrentAudio()) {
               model._wavFileHandler.start(audioDataUrl);
             } else {
-              console.warn('WavFileHandler start skipped - audio was stopped');
+              console.warn(`[AudioTask] WavFileHandler start skipped — audio was stopped — ${label}`);
             }
           }
         });
 
         audio.addEventListener('ended', () => {
-          console.log("Audio playback completed");
-          cleanup();
+          clearTimeout(canplaythroughTimeout);
+          console.log(`[AudioTask] ended — ${label}`);
+          cleanup('ended');
         });
 
         audio.addEventListener('error', (error) => {
-          console.error("Audio playback error:", error);
-          cleanup();
+          clearTimeout(canplaythroughTimeout);
+          console.error(`[AudioTask] audio element error — ${label}`, error);
+          cleanup('audio-element-error');
         });
 
+        console.log(`[AudioTask] audio.load() called — ${label}`);
         audio.load();
       } else {
+        console.log(`[AudioTask] No audio data — resolving immediately — ${label}`);
         resolve();
       }
     } catch (error) {
-      console.error('Audio playback setup error:', error);
+      console.error(`[AudioTask] Setup error — ${label}:`, error);
       toaster.create({
         title: `${t('error.audioPlayback')}: ${error}`,
         type: "error",
@@ -268,11 +279,11 @@ export const useAudioTask = () => {
     const { aiState: currentState } = stateRef.current;
 
     if (currentState === 'interrupted') {
-      console.log('Skipping audio task due to interrupted state');
+      console.warn(`[AudioTask] Skipping — aiState="interrupted", text="${options.displayText?.text ?? ''}"`);
       return;
     }
 
-    console.log(`Adding audio task ${options.displayText?.text} to queue`);
+    console.log(`[AudioTask] Enqueuing — aiState="${currentState}", text="${options.displayText?.text ?? ''}", hasAudio=${!!options.audioBase64}`);
     audioTaskQueue.addTask(() => handleAudioPlayback(options));
   };
 

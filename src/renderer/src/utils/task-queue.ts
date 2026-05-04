@@ -17,13 +17,16 @@ export class TaskQueue {
 
   addTask(task: () => Promise<void>) {
     this.queue.push(task);
+    console.log(`[TaskQueue] Task added — queued=${this.queue.length} running=${this.running}`);
     this.runNextTask();
   }
 
   clearQueue() {
+    const prevLen = this.queue.length;
     this.queue = [];
     this.activeTasks.clear();
     this.running = false;
+    console.log(`[TaskQueue] Queue cleared (had ${prevLen} pending tasks)`);
   }
 
   private async runNextTask() {
@@ -38,14 +41,16 @@ export class TaskQueue {
     this.running = true;
     const task = this.queue.shift();
     if (task) {
+      console.log(`[TaskQueue] Starting task — remaining=${this.queue.length}`);
       const taskPromise = task();
       this.activeTasks.add(taskPromise);
 
       try {
         await taskPromise;
+        console.log(`[TaskQueue] Task completed — remaining=${this.queue.length}`);
         await new Promise(resolve => setTimeout(resolve, this.taskInterval));
       } catch (error) {
-        console.error('Task Queue Error', error);
+        console.error('[TaskQueue] Task threw an error:', error);
       } finally {
         this.activeTasks.delete(taskPromise);
         this.running = false;

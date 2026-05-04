@@ -72,11 +72,13 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         stopMic();
         break;
       case 'conversation-chain-start':
+        console.log('[Handler] conversation-chain-start → clearing queue, state→thinking-speaking');
         setAiState('thinking-speaking');
         audioTaskQueue.clearQueue();
         clearResponse();
         break;
       case 'conversation-chain-end':
+        console.log('[Handler] conversation-chain-end → scheduling idle task');
         audioTaskQueue.addTask(() => new Promise<void>((resolve) => {
           setAiState((currentState: AiState) => {
             if (currentState === 'thinking-speaking') {
@@ -168,9 +170,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         break;
       case 'audio':
         if (aiState === 'interrupted' || aiState === 'listening') {
-          console.log('Audio playback intercepted. Sentence:', message.display_text?.text);
+          console.warn(`[Handler] Audio skipped — aiState="${aiState}", text="${message.display_text?.text ?? ''}"`);
         } else {
-          console.log("actions", message.actions);
+          console.log(`[Handler] Queuing audio task — aiState="${aiState}", text="${message.display_text?.text ?? ''}", hasAudio=${!!message.audio}`, "actions", message.actions);
           addAudioTask({
             audioBase64: message.audio || '',
             volumes: message.volumes || [],
