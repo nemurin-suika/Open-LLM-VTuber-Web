@@ -252,25 +252,32 @@ export const useAudioTask = () => {
     }
   });
 
-  // Handle backend synthesis completion
-  useEffect(() => {
-    let isMounted = true;
+  // Keep stable refs to avoid re-triggering the effect when these functions change identity
+  const sendMessageRef = useRef(sendMessage);
+  const stopCurrentAudioAndLipSyncRef = useRef(stopCurrentAudioAndLipSync);
+  useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
+  useEffect(() => { stopCurrentAudioAndLipSyncRef.current = stopCurrentAudioAndLipSync; }, [stopCurrentAudioAndLipSync]);
 
-    const handleComplete = async () => {
+  // Handle backend synthesis completion
+  // Only depend on backendSynthComplete so this fires exactly once per true→false cycle.
+  // Using refs for sendMessage/stop prevents re-firing when those change identity mid-cycle.
+  useEffect(() => {
+    if (!backendSynthComplete) return;
+
+    let cancelled = false;
+
+    (async () => {
       await audioTaskQueue.waitForCompletion();
-      if (isMounted && backendSynthComplete) {
-        stopCurrentAudioAndLipSync();
-        sendMessage({ type: "frontend-playback-complete" });
+      if (!cancelled) {
+        console.log('[AudioTask] backend-synth-complete: sending frontend-playback-complete');
+        stopCurrentAudioAndLipSyncRef.current();
+        sendMessageRef.current({ type: "frontend-playback-complete" });
         setBackendSynthComplete(false);
       }
-    };
+    })();
 
-    handleComplete();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [backendSynthComplete, sendMessage, setBackendSynthComplete, stopCurrentAudioAndLipSync]);
+    return () => { cancelled = true; };
+  }, [backendSynthComplete, setBackendSynthComplete]);
 
   /**
    * Add a new audio task to the queue

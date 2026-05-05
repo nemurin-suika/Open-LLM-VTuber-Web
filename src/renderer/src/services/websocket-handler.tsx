@@ -23,7 +23,6 @@ import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
 import { resetGazeToCenter } from '@/utils/gaze-animator';
-import { returnToHome } from '@/utils/model-movement-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
@@ -90,9 +89,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             }
             return currentState;
           });
-          // Smoothly return gaze to center and body to home position
           resetGazeToCenter();
-          returnToHome();
           resolve();
         }));
         break;
@@ -270,14 +267,20 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         setBackendSynthComplete(true);
         break;
       case 'conversation-chain-end':
-        if (!audioTaskQueue.hasTask()) {
+        console.log('[Handler] conversation-chain-end (direct type) → scheduling idle task');
+        audioTaskQueue.addTask(() => new Promise<void>((resolve) => {
           setAiState((currentState: AiState) => {
             if (currentState === 'thinking-speaking') {
+              if (autoStartMicOnConvEndRef.current) {
+                startMic();
+              }
               return 'idle';
             }
             return currentState;
           });
-        }
+          resetGazeToCenter();
+          resolve();
+        }));
         break;
       case 'force-new-message':
         setForceNewMessage(true);
