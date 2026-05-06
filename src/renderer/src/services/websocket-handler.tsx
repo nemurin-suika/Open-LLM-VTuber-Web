@@ -23,6 +23,7 @@ import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
 import { resetGazeToCenter } from '@/utils/gaze-animator';
+import { configureWind } from '@/utils/wind-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 import { audioManager } from '@/utils/audio-manager';
 
@@ -134,6 +135,10 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           const modelUrl = baseUrl + message.model_info.url;
           // eslint-disable-next-line no-param-reassign
           message.model_info.url = modelUrl;
+        }
+
+        if (message.wind_effect_config) {
+          configureWind(message.wind_effect_config);
         }
 
         setAiState('idle');

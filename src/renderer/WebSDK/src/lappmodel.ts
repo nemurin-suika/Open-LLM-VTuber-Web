@@ -606,6 +606,12 @@ export class LAppModel extends CubismUserModel {
       this._breath.updateParameters(this._model, deltaTimeSeconds);
     }
 
+    // Wind effect: add angle offset to drive hair/cloth physics (body stays still)
+    const windOffset: number = (window as any).getWindValue?.() ?? 0;
+    if (windOffset !== 0 && this._idParamAngleX) {
+      this._model.addParameterValueById(this._idParamAngleX, windOffset);
+    }
+
     // 物理演算の設定
     if (this._physics != null) {
       this._physics.evaluate(this._model, deltaTimeSeconds);
