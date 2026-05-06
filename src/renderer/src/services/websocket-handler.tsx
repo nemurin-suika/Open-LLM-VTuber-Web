@@ -24,6 +24,7 @@ import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
 import { resetGazeToCenter } from '@/utils/gaze-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
+import { audioManager } from '@/utils/audio-manager';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -75,6 +76,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         setAiState('thinking-speaking');
         audioTaskQueue.clearQueue();
         clearResponse();
+        audioManager.saveBaseVolume();
         break;
       case 'conversation-chain-end':
         console.log('[Handler] conversation-chain-end → scheduling idle task');
@@ -90,6 +92,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             return currentState;
           });
           resetGazeToCenter();
+          audioManager.restoreBaseVolume();
           resolve();
         }));
         break;
@@ -179,6 +182,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             gaze: message.actions?.gaze || null,
             movement: message.actions?.movement || null,
             model_scale: message.actions?.model_scale ?? null,
+            volume_adjustment: message.actions?.volume_adjustment ?? null,
             forwarded: message.forwarded || false,
           });
         }
@@ -279,6 +283,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             return currentState;
           });
           resetGazeToCenter();
+          audioManager.restoreBaseVolume();
           resolve();
         }));
         break;

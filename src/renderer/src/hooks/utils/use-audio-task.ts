@@ -29,6 +29,7 @@ interface AudioTaskOptions {
   gaze?: { x: number; y: number } | null
   movement?: { x: number; y: number } | null
   model_scale?: number | null
+  volume_adjustment?: number | null
   speaker_uid?: string
   forwarded?: boolean
 }
@@ -89,7 +90,12 @@ export const useAudioTask = () => {
       return;
     }
 
-    const { audioBase64, displayText, expressions, gaze, movement, model_scale, forwarded } = options;
+    const { audioBase64, displayText, expressions, gaze, movement, model_scale, volume_adjustment, forwarded } = options;
+
+    // Apply cumulative volume adjustment before playback
+    if (volume_adjustment != null) {
+      audioManager.applyVolumeAdjustment(volume_adjustment);
+    }
 
     // Update display text (strip LLM control tags before showing)
     if (displayText) {

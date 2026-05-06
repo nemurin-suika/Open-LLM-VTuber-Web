@@ -9,6 +9,8 @@ class AudioManager {
   private currentAudio: HTMLAudioElement | null = null;
   private currentModel: any | null = null;
   private volume: number;
+  // Temporary volume applied during a conversation chain (null = use base volume)
+  private temporaryVolume: number | null = null;
 
   constructor() {
     const stored = localStorage.getItem(VOLUME_STORAGE_KEY);
@@ -19,9 +21,44 @@ class AudioManager {
     return this.volume;
   }
 
+  /** Effective playback volume: temporary override if active, else stored base. */
+  getEffectiveVolume(): number {
+    return this.temporaryVolume !== null ? this.temporaryVolume : this.volume;
+  }
+
   setVolume(vol: number): void {
     this.volume = Math.max(0, Math.min(1, vol));
     localStorage.setItem(VOLUME_STORAGE_KEY, this.volume.toString());
+    // Also reset temporary so manual slider changes take effect immediately
+    this.temporaryVolume = null;
+    if (this.currentAudio) {
+      this.currentAudio.volume = this.volume;
+    }
+  }
+
+  /**
+   * Save current volume as the conversation baseline and reset the temporary override.
+   * Called on conversation-chain-start so we know what to restore later.
+   */
+  saveBaseVolume(): void {
+    this.temporaryVolume = this.volume;
+  }
+
+  /**
+   * Apply a cumulative adjustment (±percentage-points, 0-100 scale) to the temporary volume.
+   * E.g. +5 adds 0.05 to the 0-1 internal scale.
+   */
+  applyVolumeAdjustment(delta: number): void {
+    const base = this.temporaryVolume !== null ? this.temporaryVolume : this.volume;
+    this.temporaryVolume = Math.max(0, Math.min(1, base + delta / 100));
+  }
+
+  /**
+   * Restore the stored base volume and clear any temporary override.
+   * Called on conversation-chain-end.
+   */
+  restoreBaseVolume(): void {
+    this.temporaryVolume = null;
     if (this.currentAudio) {
       this.currentAudio.volume = this.volume;
     }
@@ -33,7 +70,7 @@ class AudioManager {
   setCurrentAudio(audio: HTMLAudioElement, model: any) {
     this.currentAudio = audio;
     this.currentModel = model;
-    audio.volume = this.volume;
+    audio.volume = this.getEffectiveVolume();
   }
 
   /**

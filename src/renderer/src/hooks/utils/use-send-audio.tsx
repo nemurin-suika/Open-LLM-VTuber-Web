@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useWebSocket } from "@/context/websocket-context";
 import { useMediaCapture } from "@/hooks/utils/use-media-capture";
+import { audioManager } from "@/utils/audio-manager";
 
 export function useSendAudio() {
   const { sendMessage } = useWebSocket();
@@ -17,13 +18,13 @@ export function useSendAudio() {
         sendMessage({
           type: "mic-audio-data",
           audio: Array.from(chunk),
-          // Only send images with first chunk
         });
       }
 
-      // Send end signal after all chunks
+      // Send end signal after all chunks — include current volume (0-100 scale)
       const images = await captureAllMedia();
-      sendMessage({ type: "mic-audio-end", images });
+      const currentVolumePercent = Math.round(audioManager.getVolume() * 100);
+      sendMessage({ type: "mic-audio-end", images, current_volume: currentVolumePercent });
     },
     [sendMessage, captureAllMedia],
   );

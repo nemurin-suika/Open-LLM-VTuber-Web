@@ -6,6 +6,7 @@ import { useChatHistory } from '@/context/chat-history-context';
 import { useVAD } from '@/context/vad-context';
 import { useMediaCapture } from '@/hooks/utils/use-media-capture';
 import { useProactiveSpeak } from '@/context/proactive-speak-context';
+import { audioManager } from '@/utils/audio-manager';
 
 export function useTextInput() {
   const [inputText, setInputText] = useState('');
@@ -35,6 +36,7 @@ export function useTextInput() {
       type: 'text-input',
       text: inputText.trim(),
       images,
+      current_volume: Math.round(audioManager.getVolume() * 100),
     });
 
     if (autoStopMic) stopMic();
