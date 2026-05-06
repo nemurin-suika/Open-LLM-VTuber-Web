@@ -22,7 +22,7 @@ import { useGroup } from '@/context/group-context';
 import { useInterrupt } from '@/hooks/utils/use-interrupt';
 import { useBrowser } from '@/context/browser-context';
 import { stripLLMTags } from '@/utils/text-filter';
-import { resetGazeToCenter } from '@/utils/gaze-animator';
+import { resetGazeToCenter, configureIdleGaze, enableIdleGaze } from '@/utils/gaze-animator';
 import { configureWind } from '@/utils/wind-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 import { audioManager } from '@/utils/audio-manager';
@@ -57,6 +57,13 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       setPendingModelInfo(undefined);
     }
   }, [pendingModelInfo, setModelInfo, confUid]);
+
+  // Start idle gaze wandering once loaded; it runs in all states continuously
+  useEffect(() => {
+    if (aiState !== 'loading') {
+      enableIdleGaze();
+    }
+  }, [aiState]);
 
   const {
     setCurrentHistoryUid, setMessages, setHistoryList,
@@ -139,6 +146,10 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
 
         if (message.wind_effect_config) {
           configureWind(message.wind_effect_config);
+        }
+
+        if (message.idle_gaze_config) {
+          configureIdleGaze(message.idle_gaze_config);
         }
 
         setAiState('idle');
