@@ -1,19 +1,21 @@
 /**
  * Wind effect animator for Live2D physics.
  *
- * Produces a smoothly varying angle offset that is read by lappmodel.ts
- * and added to ParamAngleX before the physics step. The physics chains
- * (hair, skirt, ribbon, etc.) then react as if blown by wind — the body
- * itself is not moved.
+ * Sets the Cubism physics wind vector (physics.getOption().wind.x) each frame
+ * so that hair, cloth, and other physics-driven parts flutter naturally.
+ * The body and face parameters are unaffected.
  *
  * Exposed on window.getWindValue() so lappmodel.ts (inside WebSDK) can
  * read the current value without importing this module directly.
  *
- * The angle is in the same unit as the drag offsets in lappmodel.ts
- * (dragX * 30 → ±30 units). max_strength=1.0 maps to 30 units.
+ * Scale reference: Cubism physics gravity defaults to y = -1.0.
+ * With AirResistance = 5.0 the effect is heavily damped, so large values
+ * are needed for visible movement.
+ * MAX_WIND_FORCE = 10.0 → max_strength=1.0 gives wind = ±10 (10× gravity).
+ * In practice 0.2–0.5 in conf.yaml gives gentle to moderate sway.
  */
 
-const MAX_ANGLE_UNITS = 30; // matches the drag scale in lappmodel.ts
+const MAX_WIND_FORCE = 10.0;
 
 export interface WindConfig {
   enabled: boolean;
@@ -27,11 +29,11 @@ interface WindState {
   enabled: boolean;
   current: number;
   target: number;
-  maxAngle: number;
+  maxForce: number;
   transitionSpeed: number;
   intervalMin: number;
   intervalMax: number;
-  nextChangeAt: number; // performance.now() timestamp (ms)
+  nextChangeAt: number;
   rafId: number | null;
   lastTime: number;
 }
@@ -40,8 +42,8 @@ const state: WindState = {
   enabled: false,
   current: 0,
   target: 0,
-  maxAngle: MAX_ANGLE_UNITS * 0.5,
-  transitionSpeed: 0.5,
+  maxForce: MAX_WIND_FORCE * 0.5,
+  transitionSpeed: 1.5,
   intervalMin: 3,
   intervalMax: 8,
   nextChangeAt: 0,
@@ -51,8 +53,7 @@ const state: WindState = {
 
 function pickNewTarget(): void {
   const direction = Math.random() < 0.5 ? -1 : 1;
-  // Vary strength 30–100 % of max so it doesn't always feel the same
-  const strength = (0.3 + Math.random() * 0.7) * state.maxAngle;
+  const strength = (0.4 + Math.random() * 0.6) * state.maxForce;
   state.target = direction * strength;
 
   const interval =
@@ -75,7 +76,6 @@ function tick(now: number): void {
     pickNewTarget();
   }
 
-  // Exponential lerp — feels more natural than linear
   const alpha = Math.min(state.transitionSpeed * dt, 1);
   state.current += (state.target - state.current) * alpha;
 
@@ -89,18 +89,18 @@ function startLoop(): void {
   state.rafId = requestAnimationFrame(tick);
 }
 
-/** Current wind angle offset in Live2D units. Called every frame by lappmodel. */
 export function getWindValue(): number {
   return state.enabled ? state.current : 0;
 }
 
-/** Apply (or update) wind configuration received from the backend. */
 export function configureWind(config: WindConfig): void {
   state.enabled = config.enabled;
-  state.maxAngle = config.max_strength * MAX_ANGLE_UNITS;
+  state.maxForce = config.max_strength * MAX_WIND_FORCE;
   state.transitionSpeed = config.transition_speed;
   state.intervalMin = config.interval_min;
   state.intervalMax = config.interval_max;
+
+  console.log('[wind] configureWind called:', config, '→ maxForce:', state.maxForce);
 
   if (state.enabled) {
     startLoop();
@@ -110,7 +110,6 @@ export function configureWind(config: WindConfig): void {
   }
 }
 
-// Expose on window so lappmodel.ts (WebSDK, separate module graph) can read it
 if (typeof window !== 'undefined') {
   (window as any).getWindValue = getWindValue;
 }

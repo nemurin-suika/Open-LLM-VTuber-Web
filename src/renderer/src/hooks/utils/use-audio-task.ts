@@ -94,7 +94,10 @@ export const useAudioTask = () => {
 
     // Apply cumulative volume adjustment before playback
     if (volume_adjustment != null) {
+      const before = audioManager.getEffectiveVolume();
       audioManager.applyVolumeAdjustment(volume_adjustment);
+      const after = audioManager.getEffectiveVolume();
+      console.log(`[VolumeCtrl] adjustment=${volume_adjustment > 0 ? '+' : ''}${volume_adjustment}, ${(before*100).toFixed(0)}% → ${(after*100).toFixed(0)}%`);
     }
 
     // Update display text (strip LLM control tags before showing)

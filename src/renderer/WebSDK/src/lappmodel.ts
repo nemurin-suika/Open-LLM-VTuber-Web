@@ -583,9 +583,12 @@ export class LAppModel extends CubismUserModel {
     }
 
     // ドラッグによる変化
+    // Idle gaze: slowly wanders AngleX/Y directly (independent of drag)
+    const idleGaze = (window as any).getIdleGazeXY?.() ?? { x: 0, y: 0 };
+
     // ドラッグによる顔の向きの調整
-    this._model.addParameterValueById(this._idParamAngleX, this._dragX * 30); // -30から30の値を加える
-    this._model.addParameterValueById(this._idParamAngleY, this._dragY * 30);
+    this._model.addParameterValueById(this._idParamAngleX, this._dragX * 30 + idleGaze.x);
+    this._model.addParameterValueById(this._idParamAngleY, this._dragY * 30 + idleGaze.y);
     this._model.addParameterValueById(
       this._idParamAngleZ,
       this._dragX * this._dragY * -30
@@ -606,10 +609,10 @@ export class LAppModel extends CubismUserModel {
       this._breath.updateParameters(this._model, deltaTimeSeconds);
     }
 
-    // Wind effect: add angle offset to drive hair/cloth physics (body stays still)
-    const windOffset: number = (window as any).getWindValue?.() ?? 0;
-    if (windOffset !== 0 && this._idParamAngleX) {
-      this._model.addParameterValueById(this._idParamAngleX, windOffset);
+    // Wind effect: drive Cubism physics wind vector for hair/cloth flutter
+    if (this._physics != null) {
+      const windX: number = (window as any).getWindValue?.() ?? 0;
+      this._physics.getOption().wind.x = windX;
     }
 
     // 物理演算の設定

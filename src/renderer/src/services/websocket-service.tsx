@@ -49,6 +49,7 @@ export interface Actions {
   gaze?: { x: number; y: number };
   movement?: { dx: number; dy: number } | { x: number; y: number };
   model_scale?: number;
+  volume_adjustment?: number;
 }
 
 export interface MessageEvent {
