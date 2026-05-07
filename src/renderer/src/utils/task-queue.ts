@@ -70,7 +70,7 @@ export class TaskQueue {
         if (!this.hasTask()) {
           resolve();
         } else {
-          setTimeout(check, 100);
+          setTimeout(check, 10);
         }
       };
       check();

@@ -179,19 +179,19 @@ export const useAudioTask = () => {
           }
         };
 
-        // Timeout guard: if canplaythrough never fires, unblock the queue
-        const canplaythroughTimeout = setTimeout(() => {
+        // Timeout guard: if canplay never fires, unblock the queue
+        const canplayTimeout = setTimeout(() => {
           if (!isFinished) {
-            console.error(`[AudioTask] canplaythrough timed out after 10s — ${label}. Skipping.`);
-            cleanup('canplaythrough-timeout');
+            console.error(`[AudioTask] canplay timed out after 10s — ${label}. Skipping.`);
+            cleanup('canplay-timeout');
           }
         }, 10000);
 
         // Enhance lip sync sensitivity
         const lipSyncScale = 2.0;
 
-        audio.addEventListener('canplaythrough', () => {
-          clearTimeout(canplaythroughTimeout);
+        audio.addEventListener('canplay', () => {
+          clearTimeout(canplayTimeout);
           // Check for interruption before playback
           if (stateRef.current.aiState === 'interrupted' || !audioManager.hasCurrentAudio()) {
             console.warn(`[AudioTask] Cancelled before play (interrupted or stopped) — ${label}`);
@@ -199,7 +199,7 @@ export const useAudioTask = () => {
             return;
           }
 
-          console.log(`[AudioTask] canplaythrough — starting play — ${label}`);
+          console.log(`[AudioTask] canplay — starting play — ${label}`);
           audio.play().then(() => {
             console.log(`[AudioTask] play() resolved — ${label}`);
           }).catch((err) => {
@@ -230,13 +230,13 @@ export const useAudioTask = () => {
         });
 
         audio.addEventListener('ended', () => {
-          clearTimeout(canplaythroughTimeout);
+          clearTimeout(canplayTimeout);
           console.log(`[AudioTask] ended — ${label}`);
           cleanup('ended');
         });
 
         audio.addEventListener('error', (error) => {
-          clearTimeout(canplaythroughTimeout);
+          clearTimeout(canplayTimeout);
           console.error(`[AudioTask] audio element error — ${label}`, error);
           cleanup('audio-element-error');
         });
