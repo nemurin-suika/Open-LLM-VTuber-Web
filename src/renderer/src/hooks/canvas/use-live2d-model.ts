@@ -271,14 +271,19 @@ export const useLive2DModel = ({
     }
 
     let attempts = 0;
-    const MAX_ATTEMPTS = 30; // up to ~3s total
+    const MAX_ATTEMPTS = 60; // up to ~6s total
+    // LoadStep.CompleteSetup = 22 (last value in the enum in lappmodel.ts).
+    // Waiting for this guarantees loadModel() has already applied kScale to the
+    // model matrix, so our saved scale won't be overwritten right after.
+    const COMPLETE_SETUP_STATE = 22;
     let timerId: ReturnType<typeof setTimeout>;
 
     const tryApply = () => {
       const adapter = (window as any).getLAppAdapter?.();
       const model = adapter?.getModel();
+      const isReady = model?._modelMatrix && model?._state === COMPLETE_SETUP_STATE;
 
-      if (model?._modelMatrix) {
+      if (isReady) {
         if (savedPos) {
           setModelPosition(savedPos.x, savedPos.y);
           modelPositionRef.current = savedPos;
