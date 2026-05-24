@@ -1,18 +1,19 @@
 /* eslint-disable */
 import { Tabs } from '@chakra-ui/react'
-import { FiCamera, FiMonitor, FiGlobe } from 'react-icons/fi'
+import { FiCamera, FiMonitor, FiGlobe, FiVolume2 } from 'react-icons/fi'
 import { useTranslation } from 'react-i18next'
 import { sidebarStyles } from './sidebar-styles'
 import CameraPanel from './camera-panel'
 import ScreenPanel from './screen-panel'
 import BrowserPanel from './browser-panel'
+import SystemAudioPanel from './system-audio-panel'
 
 function BottomTab(): JSX.Element {
   const { t } = useTranslation();
-  
+
   return (
-    <Tabs.Root 
-      defaultValue="camera" 
+    <Tabs.Root
+      defaultValue="camera"
       variant="plain"
       {...sidebarStyles.bottomTab.container}
     >
@@ -25,6 +26,10 @@ function BottomTab(): JSX.Element {
           <FiMonitor />
           {t('sidebar.screen')}
         </Tabs.Trigger>
+        <Tabs.Trigger value="audio" {...sidebarStyles.bottomTab.trigger}>
+          <FiVolume2 />
+          오디오
+        </Tabs.Trigger>
         <Tabs.Trigger value="browser" {...sidebarStyles.bottomTab.trigger}>
           <FiGlobe />
           {t('sidebar.browser')}
@@ -34,11 +39,15 @@ function BottomTab(): JSX.Element {
       <Tabs.Content value="camera">
         <CameraPanel />
       </Tabs.Content>
-      
+
       <Tabs.Content value="screen">
         <ScreenPanel />
       </Tabs.Content>
-      
+
+      <Tabs.Content value="audio">
+        <SystemAudioPanel />
+      </Tabs.Content>
+
       <Tabs.Content value="browser">
         <BrowserPanel />
       </Tabs.Content>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useProactiveSpeak } from '@/context/proactive-speak-context';
+import { useProactiveSpeak, ProactiveMode } from '@/context/proactive-speak-context';
 
 interface UseAgentSettingsProps {
   onSave?: (callback: () => void) => () => void
@@ -13,6 +13,7 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
     allowProactiveSpeak: persistedSettings.allowProactiveSpeak,
     idleSecondsToSpeak: persistedSettings.idleSecondsToSpeak,
     allowButtonTrigger: persistedSettings.allowButtonTrigger,
+    mode: persistedSettings.mode,
   });
 
   const [originalSettings, setOriginalSettings] = useState({
@@ -47,6 +48,13 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
     }));
   }, []);
 
+  const handleModeChange = useCallback((mode: ProactiveMode) => {
+    setTempSettings((prev) => ({
+      ...prev,
+      mode,
+    }));
+  }, []);
+
   const handleSave = useCallback(() => {
     updateSettings(tempSettings);
     setOriginalSettings(tempSettings);
@@ -74,5 +82,6 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
     handleAllowProactiveSpeakChange,
     handleIdleSecondsChange,
     handleAllowButtonTriggerChange,
+    handleModeChange,
   };
 }

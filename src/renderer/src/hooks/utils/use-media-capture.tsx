@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCamera } from '@/context/camera-context';
 import { useScreenCaptureContext } from '@/context/screen-capture-context';
+import { useSystemAudioContext } from '@/context/system-audio-context';
 import { toaster } from "@/components/ui/toaster";
 import {
   IMAGE_COMPRESSION_QUALITY_KEY,
@@ -29,6 +30,7 @@ export function useMediaCapture() {
   const { t } = useTranslation();
   const { stream: cameraStream } = useCamera();
   const { stream: screenStream } = useScreenCaptureContext();
+  const { getLatestAudio } = useSystemAudioContext();
 
   const getCompressionQuality = useCallback(() => {
     const storedQuality = localStorage.getItem(IMAGE_COMPRESSION_QUALITY_KEY);
@@ -130,7 +132,24 @@ export function useMediaCapture() {
     return images;
   }, [cameraStream, screenStream, captureFrame]);
 
+  // 시스템 오디오 롤링 버퍼에서 최근 N초 가져오기
+  const captureSystemAudio = useCallback(async () => {
+    try {
+      const result = await getLatestAudio();
+      if (result) {
+        console.log(`[useMediaCapture] system audio 캡처 (${result.data.length}B base64, ${result.mime_type})`);
+      } else {
+        console.log('[useMediaCapture] system audio 없음 (캡처 OFF 또는 버퍼 비어있음)');
+      }
+      return result;
+    } catch (e) {
+      console.warn('[useMediaCapture] system audio 가져오기 실패:', e);
+      return null;
+    }
+  }, [getLatestAudio]);
+
   return {
     captureAllMedia,
+    captureSystemAudio,
   };
 }

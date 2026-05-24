@@ -16,7 +16,7 @@ export function useTextInput() {
   const { interrupt } = useInterrupt();
   const { appendHumanMessage } = useChatHistory();
   const { stopMic, autoStopMic } = useVAD();
-  const { captureAllMedia } = useMediaCapture();
+  const { captureAllMedia, captureSystemAudio } = useMediaCapture();
   const { resetIdleTimer } = useProactiveSpeak();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,13 +29,17 @@ export function useTextInput() {
     // Removed: auto-interrupt when AI is speaking.
     // Text input is now queued and plays after the current output.
 
-    const images = await captureAllMedia();
+    const [images, system_audio] = await Promise.all([
+      captureAllMedia(),
+      captureSystemAudio(),
+    ]);
 
     appendHumanMessage(inputText.trim());
     wsContext.sendMessage({
       type: 'text-input',
       text: inputText.trim(),
       images,
+      system_audio,
       current_volume: Math.round(audioManager.getVolume() * 100),
     });
 

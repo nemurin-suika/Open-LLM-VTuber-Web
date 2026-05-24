@@ -3,8 +3,10 @@ import React, { useContext, useCallback } from 'react';
 import { wsService } from '@/services/websocket-service';
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 
-const DEFAULT_WS_URL = 'ws://127.0.0.1:12393/client-ws';
-const DEFAULT_BASE_URL = 'http://127.0.0.1:12393';
+// dev 모드(npm run dev)는 백엔드를 192.168.0.5로 기본 지정, 빌드본은 127.0.0.1 유지
+const DEFAULT_HOST = import.meta.env.DEV ? '192.168.0.5' : '127.0.0.1';
+const DEFAULT_WS_URL = `ws://${DEFAULT_HOST}:12393/client-ws`;
+const DEFAULT_BASE_URL = `http://${DEFAULT_HOST}:12393`;
 
 export interface HistoryInfo {
   uid: string;

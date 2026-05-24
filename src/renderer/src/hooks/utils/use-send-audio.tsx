@@ -5,7 +5,7 @@ import { audioManager } from "@/utils/audio-manager";
 
 export function useSendAudio() {
   const { sendMessage } = useWebSocket();
-  const { captureAllMedia } = useMediaCapture();
+  const { captureAllMedia, captureSystemAudio } = useMediaCapture();
 
   const sendAudioPartition = useCallback(
     async (audio: Float32Array) => {
@@ -22,11 +22,19 @@ export function useSendAudio() {
       }
 
       // Send end signal after all chunks — include current volume (0-100 scale)
-      const images = await captureAllMedia();
+      const [images, system_audio] = await Promise.all([
+        captureAllMedia(),
+        captureSystemAudio(),
+      ]);
       const currentVolumePercent = Math.round(audioManager.getVolume() * 100);
-      sendMessage({ type: "mic-audio-end", images, current_volume: currentVolumePercent });
+      sendMessage({
+        type: "mic-audio-end",
+        images,
+        system_audio,
+        current_volume: currentVolumePercent,
+      });
     },
-    [sendMessage, captureAllMedia],
+    [sendMessage, captureAllMedia, captureSystemAudio],
   );
 
   return {

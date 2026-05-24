@@ -5,10 +5,13 @@ import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useTriggerSpeak } from '@/hooks/utils/use-trigger-speak';
 import { useAiState, AiStateEnum, AiState } from '@/context/ai-state-context';
 
+export type ProactiveMode = 'broadcast' | 'private';
+
 interface ProactiveSpeakSettings {
   allowButtonTrigger: boolean;
   allowProactiveSpeak: boolean
   idleSecondsToSpeak: number
+  mode: ProactiveMode
 }
 
 interface ProactiveSpeakContextType {
@@ -24,14 +27,20 @@ const defaultSettings: ProactiveSpeakSettings = {
   allowProactiveSpeak: true,
   idleSecondsToSpeak: 20,
   allowButtonTrigger: false,
+  mode: 'broadcast',
 };
 
 export const ProactiveSpeakContext = createContext<ProactiveSpeakContextType | null>(null);
 
 export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useLocalStorage<ProactiveSpeakSettings>(
+  const [rawSettings, setSettings] = useLocalStorage<ProactiveSpeakSettings>(
     'proactiveSpeakSettings',
     defaultSettings,
+  );
+  // 기존 localStorage에 mode 같은 신규 필드가 없을 수 있으니 defaults와 merge
+  const settings: ProactiveSpeakSettings = useMemo(
+    () => ({ ...defaultSettings, ...rawSettings }),
+    [rawSettings],
   );
 
   const { aiState } = useAiState();
@@ -44,10 +53,16 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
   // speech-ignored 후 타이머를 재개해야 할 때 true로 설정
   const shouldResumeRef = useRef(false);
   const aiStateRef = useRef<AiState>(aiState);
+  // setTimeout 콜백이 항상 최신 mode를 참조하도록 ref로 보관
+  const modeRef = useRef<ProactiveMode>(settings.mode);
 
   useEffect(() => {
     aiStateRef.current = aiState;
   }, [aiState]);
+
+  useEffect(() => {
+    modeRef.current = settings.mode;
+  }, [settings.mode]);
 
   // 타이머 콜백만 취소 (idleActualStartRef는 유지해 재개에 사용)
   const clearIdleTimer = useCallback(() => {
@@ -69,7 +84,7 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
 
     idleTimerRef.current = setTimeout(() => {
       if (aiStateRef.current !== AiStateEnum.IDLE) return;
-      sendTriggerSignal((Date.now() - idleActualStartRef.current!) / 1000);
+      sendTriggerSignal((Date.now() - idleActualStartRef.current!) / 1000, modeRef.current);
     }, settings.idleSecondsToSpeak * 1000);
   }, [settings.allowProactiveSpeak, settings.idleSecondsToSpeak, sendTriggerSignal, clearIdleTimer]);
 
@@ -89,14 +104,14 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
     const remaining = settings.idleSecondsToSpeak - elapsed;
 
     if (remaining <= 0) {
-      sendTriggerSignal(elapsed);
+      sendTriggerSignal(elapsed, modeRef.current);
       return;
     }
 
     idleStartTimeRef.current = idleActualStartRef.current;
     idleTimerRef.current = setTimeout(() => {
       if (aiStateRef.current !== AiStateEnum.IDLE) return;
-      sendTriggerSignal((Date.now() - idleActualStartRef.current!) / 1000);
+      sendTriggerSignal((Date.now() - idleActualStartRef.current!) / 1000, modeRef.current);
     }, remaining * 1000);
   }, [settings.allowProactiveSpeak, settings.idleSecondsToSpeak, sendTriggerSignal, clearIdleTimer, startFreshIdleTimer]);
 

@@ -21,6 +21,7 @@ import TitleBar from "./components/electron/title-bar";
 import { InputSubtitle } from "./components/electron/input-subtitle";
 import { ProactiveSpeakProvider } from "./context/proactive-speak-context";
 import { ScreenCaptureProvider } from "./context/screen-capture-context";
+import { SystemAudioProvider } from "./context/system-audio-context";
 import { GroupProvider } from "./context/group-context";
 import { BrowserProvider } from "./context/browser-context";
 // eslint-disable-next-line import/no-extraneous-dependencies, import/newline-after-import
@@ -172,7 +173,8 @@ function AppWithGlobalStyles(): JSX.Element {
     <>
       <CameraProvider>
         <ScreenCaptureProvider>
-          <CharacterConfigProvider>
+          <SystemAudioProvider>
+            <CharacterConfigProvider>
             <ChatHistoryProvider>
               <AiStateProvider>
                 <ProactiveSpeakProvider>
@@ -196,6 +198,7 @@ function AppWithGlobalStyles(): JSX.Element {
               </AiStateProvider>
             </ChatHistoryProvider>
           </CharacterConfigProvider>
+          </SystemAudioProvider>
         </ScreenCaptureProvider>
       </CameraProvider>
     </>
