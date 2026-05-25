@@ -26,10 +26,20 @@ interface SystemAudioContextType {
 
 const SystemAudioContext = createContext<SystemAudioContextType | undefined>(undefined);
 
-// 롤링 버퍼 설정: 1분 보관 → LLM에는 최근 10초만 전송
+// 롤링 버퍼 설정: 1분 보관 → LLM에는 설정값(기본 10초, 최대 60초)만 잘라 전송
 const BUFFER_SECONDS = 60;
-const SEND_SECONDS = 10;
+const DEFAULT_SEND_SECONDS = 10;
+const MAX_SEND_SECONDS = 60;
+const SYSTEM_AUDIO_SEND_SECONDS_KEY = 'appSystemAudioSendSeconds';
 const TIMESLICE_MS = 1000;
+
+function readSendSeconds(): number {
+  const v = localStorage.getItem(SYSTEM_AUDIO_SEND_SECONDS_KEY);
+  if (!v) return DEFAULT_SEND_SECONDS;
+  const n = parseFloat(v);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_SEND_SECONDS;
+  return Math.min(n, MAX_SEND_SECONDS);
+}
 
 // MediaRecorder가 실제로 지원하는 mime type 선택
 function pickAudioMimeType(): string {
@@ -240,8 +250,9 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
   const getLatestAudio = async (): Promise<SystemAudioData | null> => {
     if (!isCapturing || chunksRef.current.length === 0) return null;
     try {
-      // 최근 SEND_SECONDS 분량만 잘라서 전송. 첫 chunk(헤더)가 그 안에 없으면 prepend.
-      const sendChunkCount = Math.ceil((SEND_SECONDS * 1000) / TIMESLICE_MS);
+      // 매 호출마다 설정값을 읽음 (사용자가 사이드바에서 바꿔도 즉시 반영)
+      const sendSec = readSendSeconds();
+      const sendChunkCount = Math.ceil((sendSec * 1000) / TIMESLICE_MS);
       const slice = chunksRef.current.slice(-sendChunkCount);
       const parts: BlobPart[] = [];
       if (headerChunkRef.current && !slice.includes(headerChunkRef.current)) {

@@ -1,11 +1,13 @@
 import { useCallback } from "react";
 import { useWebSocket } from "@/context/websocket-context";
 import { useMediaCapture } from "@/hooks/utils/use-media-capture";
+import { useBroadcasting } from "@/context/broadcasting-context";
 import { audioManager } from "@/utils/audio-manager";
 
 export function useSendAudio() {
   const { sendMessage } = useWebSocket();
   const { captureAllMedia, captureSystemAudio } = useMediaCapture();
+  const { isBroadcasting } = useBroadcasting();
 
   const sendAudioPartition = useCallback(
     async (audio: Float32Array) => {
@@ -31,10 +33,11 @@ export function useSendAudio() {
         type: "mic-audio-end",
         images,
         system_audio,
+        is_broadcasting: isBroadcasting,
         current_volume: currentVolumePercent,
       });
     },
-    [sendMessage, captureAllMedia, captureSystemAudio],
+    [sendMessage, captureAllMedia, captureSystemAudio, isBroadcasting],
   );
 
   return {

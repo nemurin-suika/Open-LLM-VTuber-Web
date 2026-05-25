@@ -13,6 +13,16 @@ export const IMAGE_COMPRESSION_QUALITY_KEY = 'appImageCompressionQuality';
 export const DEFAULT_IMAGE_COMPRESSION_QUALITY = 0.8;
 export const IMAGE_MAX_WIDTH_KEY = 'appImageMaxWidth';
 export const DEFAULT_IMAGE_MAX_WIDTH = 0;
+// 과거 스크린샷 N장을 N*interval, (N-1)*interval, ..., 1*interval 초 전에서 가져옴
+// 예: count=3, interval=2 → 2s, 4s, 6s 전 스크린샷 같이 전송
+export const PAST_SCREENSHOT_COUNT_KEY = 'appPastScreenshotCount';
+export const DEFAULT_PAST_SCREENSHOT_COUNT = 3;
+export const PAST_SCREENSHOT_INTERVAL_KEY = 'appPastScreenshotIntervalSec';
+export const DEFAULT_PAST_SCREENSHOT_INTERVAL = 2;
+// LLM 전송 시 시스템 오디오 길이 (롤링 버퍼는 60s 고정, 그 안에서 잘라 보냄)
+export const SYSTEM_AUDIO_SEND_SECONDS_KEY = 'appSystemAudioSendSeconds';
+export const DEFAULT_SYSTEM_AUDIO_SEND_SECONDS = 10;
+export const MAX_SYSTEM_AUDIO_SEND_SECONDS = 60;
 
 interface GeneralSettings {
   language: string[]
@@ -26,6 +36,9 @@ interface GeneralSettings {
   showSubtitle: boolean
   imageCompressionQuality: number;
   imageMaxWidth: number;
+  pastScreenshotCount: number;
+  pastScreenshotIntervalSec: number;
+  systemAudioSendSeconds: number;
 }
 
 interface UseGeneralSettingsProps {
@@ -60,6 +73,33 @@ const loadInitialImageMaxWidth = (): number => {
     }
   }
   return DEFAULT_IMAGE_MAX_WIDTH;
+};
+
+const loadInitialPastScreenshotCount = (): number => {
+  const v = localStorage.getItem(PAST_SCREENSHOT_COUNT_KEY);
+  if (v) {
+    const n = parseInt(v, 10);
+    if (!Number.isNaN(n) && n >= 0 && n <= 20) return n;
+  }
+  return DEFAULT_PAST_SCREENSHOT_COUNT;
+};
+
+const loadInitialPastScreenshotInterval = (): number => {
+  const v = localStorage.getItem(PAST_SCREENSHOT_INTERVAL_KEY);
+  if (v) {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n) && n >= 1 && n <= 30) return n;
+  }
+  return DEFAULT_PAST_SCREENSHOT_INTERVAL;
+};
+
+const loadInitialSystemAudioSendSeconds = (): number => {
+  const v = localStorage.getItem(SYSTEM_AUDIO_SEND_SECONDS_KEY);
+  if (v) {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n) && n >= 1 && n <= MAX_SYSTEM_AUDIO_SEND_SECONDS) return n;
+  }
+  return DEFAULT_SYSTEM_AUDIO_SEND_SECONDS;
 };
 
 export const useGeneralSettings = ({
@@ -106,6 +146,9 @@ export const useGeneralSettings = ({
     showSubtitle,
     imageCompressionQuality: loadInitialCompressionQuality(),
     imageMaxWidth: loadInitialImageMaxWidth(),
+    pastScreenshotCount: loadInitialPastScreenshotCount(),
+    pastScreenshotIntervalSec: loadInitialPastScreenshotInterval(),
+    systemAudioSendSeconds: loadInitialSystemAudioSendSeconds(),
   };
 
   const [settings, setSettings] = useState<GeneralSettings>(initialSettings);
@@ -130,6 +173,9 @@ export const useGeneralSettings = ({
     }
     localStorage.setItem(IMAGE_COMPRESSION_QUALITY_KEY, settings.imageCompressionQuality.toString());
     localStorage.setItem(IMAGE_MAX_WIDTH_KEY, settings.imageMaxWidth.toString());
+    localStorage.setItem(PAST_SCREENSHOT_COUNT_KEY, settings.pastScreenshotCount.toString());
+    localStorage.setItem(PAST_SCREENSHOT_INTERVAL_KEY, settings.pastScreenshotIntervalSec.toString());
+    localStorage.setItem(SYSTEM_AUDIO_SEND_SECONDS_KEY, settings.systemAudioSendSeconds.toString());
   }, [settings, bgUrlContext, baseUrl, onWsUrlChange, onBaseUrlChange, setShowSubtitle]);
 
   useEffect(() => {

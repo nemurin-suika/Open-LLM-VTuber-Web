@@ -11,6 +11,10 @@ import {
   DEFAULT_IMAGE_COMPRESSION_QUALITY,
   IMAGE_MAX_WIDTH_KEY,
   DEFAULT_IMAGE_MAX_WIDTH,
+  PAST_SCREENSHOT_COUNT_KEY,
+  DEFAULT_PAST_SCREENSHOT_COUNT,
+  PAST_SCREENSHOT_INTERVAL_KEY,
+  DEFAULT_PAST_SCREENSHOT_INTERVAL,
 } from '@/hooks/sidebar/setting/use-general-settings';
 
 // Add type definition for ImageCapture
@@ -24,12 +28,13 @@ interface ImageData {
   source: 'camera' | 'screen';
   data: string;
   mime_type: string;
+  ago_seconds?: number; // 캡처 시점 — 0=현재, 양수=N초 전, undefined=의미 없음(카메라)
 }
 
 export function useMediaCapture() {
   const { t } = useTranslation();
   const { stream: cameraStream } = useCamera();
-  const { stream: screenStream } = useScreenCaptureContext();
+  const { stream: screenStream, getPastScreenshots } = useScreenCaptureContext();
   const { getLatestAudio } = useSystemAudioContext();
 
   const getCompressionQuality = useCallback(() => {
@@ -115,7 +120,33 @@ export function useMediaCapture() {
       }
     }
 
-    // Capture screen frame
+    // 과거 스크린샷들 (오래된 것부터 → 시간순으로 LLM에 전달)
+    // count=N, interval=K → N*K, (N-1)*K, ..., 1*K 초 전.
+    if (screenStream) {
+      const countRaw = localStorage.getItem(PAST_SCREENSHOT_COUNT_KEY);
+      const intervalRaw = localStorage.getItem(PAST_SCREENSHOT_INTERVAL_KEY);
+      const count = countRaw ? Math.max(0, parseInt(countRaw, 10)) : DEFAULT_PAST_SCREENSHOT_COUNT;
+      const interval = intervalRaw ? Math.max(0.5, parseFloat(intervalRaw)) : DEFAULT_PAST_SCREENSHOT_INTERVAL;
+      if (count > 0 && interval > 0) {
+        const secondsAgoList: number[] = [];
+        for (let i = count; i >= 1; i -= 1) {
+          secondsAgoList.push(i * interval); // 오래된 것이 먼저
+        }
+        const past = getPastScreenshots(secondsAgoList);
+        // past는 호출한 secondsAgoList 순서대로 반환됨 (오래된 → 최근)
+        past.forEach((p, idx) => {
+          const secAgo = secondsAgoList[idx];
+          images.push({
+            source: 'screen',
+            data: p.data,
+            mime_type: p.mime_type,
+            ago_seconds: secAgo,
+          });
+        });
+      }
+    }
+
+    // 현재 화면 (가장 마지막에 push → LLM이 "최신"으로 인식)
     if (screenStream) {
       const screenFrame = await captureFrame(screenStream, 'screen');
       if (screenFrame) {
@@ -123,14 +154,15 @@ export function useMediaCapture() {
           source: 'screen',
           data: screenFrame,
           mime_type: 'image/jpeg',
+          ago_seconds: 0,
         });
       }
     }
 
-    console.log("images: ", images);
+    console.log(`[useMediaCapture] images: ${images.length}장 (현재 screen 1장 + 과거 N장 + 카메라 0~1장)`);
 
     return images;
-  }, [cameraStream, screenStream, captureFrame]);
+  }, [cameraStream, screenStream, captureFrame, getPastScreenshots]);
 
   // 시스템 오디오 롤링 버퍼에서 최근 N초 가져오기
   const captureSystemAudio = useCallback(async () => {

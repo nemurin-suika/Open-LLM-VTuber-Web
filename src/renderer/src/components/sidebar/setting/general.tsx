@@ -167,6 +167,48 @@ function General({ onSave, onCancel }: GeneralProps): JSX.Element {
         }}
         help={t("settings.general.imageMaxWidthHelp")}
       />
+
+      <InputField
+        label="과거 스크린샷 장수"
+        value={settings.pastScreenshotCount.toString()}
+        onChange={(value) => {
+          const n = parseInt(value as string, 10);
+          if (!Number.isNaN(n) && n >= 0 && n <= 20) {
+            handleSettingChange("pastScreenshotCount", n);
+          } else if (value === "") {
+            handleSettingChange("pastScreenshotCount", settings.pastScreenshotCount);
+          }
+        }}
+        help="현재 스크린샷 외에 과거 N장을 함께 LLM에 전송 (0~20)"
+      />
+
+      <InputField
+        label="과거 스크린샷 간격(초)"
+        value={settings.pastScreenshotIntervalSec.toString()}
+        onChange={(value) => {
+          const n = parseFloat(value as string);
+          if (!Number.isNaN(n) && n >= 1 && n <= 30) {
+            handleSettingChange("pastScreenshotIntervalSec", n);
+          } else if (value === "") {
+            handleSettingChange("pastScreenshotIntervalSec", settings.pastScreenshotIntervalSec);
+          }
+        }}
+        help="과거 N장이 K초 간격(예: count=3, interval=2 → 6s, 4s, 2s 전 스크린샷)"
+      />
+
+      <InputField
+        label="시스템 오디오 전송 길이(초)"
+        value={settings.systemAudioSendSeconds.toString()}
+        onChange={(value) => {
+          const n = parseFloat(value as string);
+          if (!Number.isNaN(n) && n >= 1 && n <= 60) {
+            handleSettingChange("systemAudioSendSeconds", n);
+          } else if (value === "") {
+            handleSettingChange("systemAudioSendSeconds", settings.systemAudioSendSeconds);
+          }
+        }}
+        help="롤링 버퍼(60초)에서 끝 N초를 LLM에 전송 (1~60초)"
+      />
     </Stack>
   );
 }

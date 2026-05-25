@@ -1,11 +1,13 @@
 import { useCallback } from 'react';
 import { useWebSocket } from '@/context/websocket-context';
 import { ProactiveMode } from '@/context/proactive-speak-context';
+import { useBroadcasting } from '@/context/broadcasting-context';
 import { useMediaCapture } from './use-media-capture';
 
 export function useTriggerSpeak() {
   const { sendMessage } = useWebSocket();
   const { captureAllMedia, captureSystemAudio } = useMediaCapture();
+  const { isBroadcasting } = useBroadcasting();
 
   // mode를 인자로 받음 — ProactiveSpeakProvider가 자기 settings를 읽어 넘겨준다.
   // useProactiveSpeak를 여기서 부르면 순환 참조(provider → useTriggerSpeak → useProactiveSpeak → 자기 context).
@@ -22,9 +24,10 @@ export function useTriggerSpeak() {
         mode,
         images,
         system_audio,
+        is_broadcasting: isBroadcasting,
       });
     },
-    [sendMessage, captureAllMedia, captureSystemAudio],
+    [sendMessage, captureAllMedia, captureSystemAudio, isBroadcasting],
   );
 
   return {
