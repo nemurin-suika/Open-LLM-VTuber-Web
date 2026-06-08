@@ -6,7 +6,6 @@ import { useChatHistory } from '@/context/chat-history-context';
 import { useVAD } from '@/context/vad-context';
 import { useMediaCapture } from '@/hooks/utils/use-media-capture';
 import { useProactiveSpeak } from '@/context/proactive-speak-context';
-import { useBroadcasting } from '@/context/broadcasting-context';
 import { audioManager } from '@/utils/audio-manager';
 
 export function useTextInput() {
@@ -19,7 +18,6 @@ export function useTextInput() {
   const { stopMic, autoStopMic } = useVAD();
   const { captureAllMedia, captureSystemAudio } = useMediaCapture();
   const { resetIdleTimer } = useProactiveSpeak();
-  const { isBroadcasting } = useBroadcasting();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
@@ -42,7 +40,6 @@ export function useTextInput() {
       text: inputText.trim(),
       images,
       system_audio,
-      is_broadcasting: isBroadcasting,
       current_volume: Math.round(audioManager.getVolume() * 100),
     });
 

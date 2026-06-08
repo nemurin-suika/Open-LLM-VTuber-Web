@@ -5,7 +5,6 @@ import { settingStyles } from './setting-styles';
 import { useAgentSettings } from '@/hooks/sidebar/setting/use-agent-settings';
 import { Radio, RadioGroup } from '@/components/ui/radio';
 import { ProactiveMode } from '@/context/proactive-speak-context';
-import { useBroadcasting } from '@/context/broadcasting-context';
 import { SwitchField, NumberField } from './common';
 
 interface AgentProps {
@@ -22,16 +21,9 @@ function Agent({ onSave, onCancel }: AgentProps): JSX.Element {
     handleAllowButtonTriggerChange,
     handleModeChange,
   } = useAgentSettings({ onSave, onCancel });
-  const { isBroadcasting, setIsBroadcasting } = useBroadcasting();
 
   return (
     <Stack {...settingStyles.common.container}>
-      <SwitchField
-        label="방송 중 (LLM에 [방송 중] 태그 전송)"
-        checked={isBroadcasting}
-        onChange={setIsBroadcasting}
-      />
-
       <SwitchField
         label={t('settings.agent.allowProactiveSpeak')}
         checked={settings.allowProactiveSpeak}
