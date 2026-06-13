@@ -1,5 +1,5 @@
 /* eslint-disable react/jsx-props-no-spreading */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge, Box, Button, Code, Stack, Text } from '@chakra-ui/react';
 import {
   DialogRoot,
@@ -14,6 +14,35 @@ import { wsService } from '../services/websocket-service';
 interface RuleOption {
   id: string;
   label: string;
+}
+
+// 승인 요청 도착 알림음 — 에셋 없이 Web Audio API로 2음 "삡삡" 생성.
+let beepCtx: AudioContext | null = null;
+function playApprovalBeep(): void {
+  try {
+    const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctor) return;
+    if (!beepCtx) beepCtx = new Ctor();
+    const ctx = beepCtx;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const tone = (start: number, freq: number, dur: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.35, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur);
+    };
+    tone(now, 880, 0.15); // 삡
+    tone(now + 0.18, 1175, 0.18); // 삡 (높게)
+  } catch {
+    // 오디오 불가 환경은 조용히 무시
+  }
 }
 
 interface ToolApprovalRequest {
@@ -38,21 +67,26 @@ interface ToolApprovalRequest {
  */
 function ToolApprovalDialog(): JSX.Element {
   const [queue, setQueue] = useState<ToolApprovalRequest[]>([]);
+  // 이미 처리한 request_id — 중복 수신 시 비프음/재추가 방지.
+  const seenIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const sub = wsService.onMessage((message: any) => {
       if (message?.type === 'tool-approval-request') {
+        const reqId = message.request_id;
+        if (!reqId || seenIds.current.has(reqId)) return;
+        seenIds.current.add(reqId);
+
         const req: ToolApprovalRequest = {
-          request_id: message.request_id,
+          request_id: reqId,
           tool_name: message.tool_name,
           tool_input: message.tool_input || {},
           rule_options: Array.isArray(message.rule_options) ? message.rule_options : [],
           ttl_days: message.ttl_days ?? 3,
         };
-        // functional update — 빠르게 연속 도착해도 누락 없이 누적. request_id 중복은 무시.
-        setQueue((q) =>
-          q.some((r) => r.request_id === req.request_id) ? q : [...q, req],
-        );
+        // 새 승인 요청 도착 → 경고음 (다이얼로그만으론 놓치기 쉬움).
+        playApprovalBeep();
+        setQueue((q) => [...q, req]);
       }
     });
     return () => sub.unsubscribe();
