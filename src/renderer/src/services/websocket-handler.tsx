@@ -333,6 +333,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           console.warn('Received incomplete tool_call_status message:', message);
         }
         break;
+      case 'tool-approval-request':
+        // ToolApprovalDialog 컴포넌트가 wsService를 직접 구독해 처리한다. 여기선 무시.
+        break;
       default:
         console.warn('Unknown message type:', message.type);
     }
