@@ -31,6 +31,7 @@ import WebSocketStatus from "./components/canvas/ws-status";
 import Subtitle from "./components/canvas/subtitle";
 import { ModeProvider, useMode } from "./context/mode-context";
 import ToolApprovalDialog from "./components/tool-approval-dialog";
+import { ClaudeUsageProvider } from "./context/claude-usage-context";
 
 function AppContent(): JSX.Element {
   const [showSidebar, setShowSidebar] = useState(true);
@@ -177,6 +178,7 @@ function AppWithGlobalStyles(): JSX.Element {
           <SystemAudioProvider>
             <CharacterConfigProvider>
             <ChatHistoryProvider>
+              <ClaudeUsageProvider>
               <AiStateProvider>
                 <ProactiveSpeakProvider>
                   <Live2DConfigProvider>
@@ -198,6 +200,7 @@ function AppWithGlobalStyles(): JSX.Element {
                   </Live2DConfigProvider>
                 </ProactiveSpeakProvider>
               </AiStateProvider>
+              </ClaudeUsageProvider>
             </ChatHistoryProvider>
           </CharacterConfigProvider>
           </SystemAudioProvider>

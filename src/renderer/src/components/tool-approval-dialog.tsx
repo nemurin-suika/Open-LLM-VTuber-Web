@@ -51,6 +51,7 @@ interface ToolApprovalRequest {
   tool_input: Record<string, any>;
   rule_options: RuleOption[];
   ttl_days: number;
+  intent?: string;
 }
 
 /**
@@ -83,6 +84,7 @@ function ToolApprovalDialog(): JSX.Element {
           tool_input: message.tool_input || {},
           rule_options: Array.isArray(message.rule_options) ? message.rule_options : [],
           ttl_days: message.ttl_days ?? 3,
+          intent: message.intent || '',
         };
         // 새 승인 요청 도착 → 경고음 (다이얼로그만으론 놓치기 쉬움).
         playApprovalBeep();
@@ -147,6 +149,22 @@ function ToolApprovalDialog(): JSX.Element {
             <Text>
               미즈키가 <b>{current.tool_name}</b> 도구를 사용하려고 합니다.
             </Text>
+            {current.intent && (
+              <Box
+                bg="purple.950"
+                borderRadius="md"
+                p="2"
+                borderLeft="3px solid"
+                borderColor="purple.400"
+              >
+                <Text fontSize="xs" color="purple.300" mb="1">
+                  💭 미즈키의 의도
+                </Text>
+                <Text fontSize="sm" color="gray.100" whiteSpace="pre-wrap">
+                  {current.intent}
+                </Text>
+              </Box>
+            )}
             <Box
               maxH="220px"
               overflowY="auto"

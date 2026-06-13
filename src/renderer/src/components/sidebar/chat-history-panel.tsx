@@ -28,7 +28,8 @@ function ChatHistoryPanel(): JSX.Element {
   const validMessages = messages.filter((msg) => msg.content || // Keep messages with content
      (msg.type === 'tool_call_status' && msg.status === 'running') || // Keep running tools
      (msg.type === 'tool_call_status' && msg.status === 'completed') || // Keep completed tools
-     (msg.type === 'tool_call_status' && msg.status === 'error'), // Keep error tools
+     (msg.type === 'tool_call_status' && msg.status === 'error') || // Keep error tools
+     msg.type === 'progress_update', // Keep progress updates
   );
 
   return (
@@ -54,6 +55,17 @@ function ChatHistoryPanel(): JSX.Element {
               </Box>
             ) : (
               validMessages.map((msg) => {
+                // Check if it's a progress update message
+                if (msg.type === 'progress_update') {
+                  return (
+                    <Flex key={msg.id} align="center" gap={2} px={2} py={1} opacity={0.7}>
+                      <Box w={2} h={2} borderRadius="full" bg="purple.400" flexShrink={0} />
+                      <Text fontSize="xs" color="purple.600" fontStyle="italic">
+                        {msg.content}
+                      </Text>
+                    </Flex>
+                  );
+                }
                 // Check if it's a tool call message
                 if (msg.type === 'tool_call_status') {
                   return (

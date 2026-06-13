@@ -16,6 +16,7 @@ interface ChatHistoryState {
   appendHumanMessage: (content: string) => void;
   appendAIMessage: (content: string, name?: string, avatar?: string) => void;
   appendOrUpdateToolCallMessage: (toolMessageData: Partial<Message>) => void; // Accept partial data
+  appendProgressMessage: (text: string) => void;
   setMessages: (messages: Message[]) => void; // Use the unified Message type
   setHistoryList: (
     value: HistoryInfo[] | ((prev: HistoryInfo[]) => HistoryInfo[])
@@ -109,6 +110,21 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       ];
     });
   }, [forceNewMessage, setForceNewMessage]);
+
+  /**
+   * Append a progress update message to the chat history (TTS 없이 채팅창에만 표시)
+   * @param text - Progress message content
+   */
+  const appendProgressMessage = useCallback((text: string) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content: text,
+      role: 'ai',
+      type: 'progress_update',
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  }, []);
 
   /**
    * Append or update a Tool Call message using its tool_id
@@ -208,6 +224,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       appendHumanMessage,
       appendAIMessage,
       appendOrUpdateToolCallMessage, // Add to context value
+      appendProgressMessage,
       setMessages,
       setHistoryList,
       setCurrentHistoryUid,
@@ -225,6 +242,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       appendHumanMessage,
       appendAIMessage,
       appendOrUpdateToolCallMessage, // Add dependency
+      appendProgressMessage,
       updateHistoryList,
       fullResponse,
       appendResponse,

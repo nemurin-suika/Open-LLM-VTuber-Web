@@ -26,6 +26,7 @@ import { resetGazeToCenter, configureIdleGaze, enableIdleGaze } from '@/utils/ga
 import { configureWind } from '@/utils/wind-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 import { audioManager } from '@/utils/audio-manager';
+import { useClaudeUsage } from '@/context/claude-usage-context';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -35,7 +36,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { aiState, setAiState, backendSynthComplete, setBackendSynthComplete } = useAiState();
   const { setModelInfo } = useLive2DConfig();
   const { setSubtitleText } = useSubtitle();
-  const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage } = useChatHistory();
+  const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage, appendProgressMessage } = useChatHistory();
   const { addAudioTask } = useAudioTask();
   const bgUrlContext = useBgUrl();
   const { confUid, setConfName, setConfUid, setConfigFiles } = useConfig();
@@ -46,6 +47,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const autoStartMicOnConvEndRef = useRef(autoStartMicOnConvEnd);
   const { interrupt } = useInterrupt();
   const { setBrowserViewData } = useBrowser();
+  const { setUsage } = useClaudeUsage();
 
   useEffect(() => {
     autoStartMicOnConvEndRef.current = autoStartMicOnConvEnd;
@@ -310,6 +312,11 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         // Handle forwarded interrupt
         interrupt(false); // do not send interrupt signal to server
         break;
+      case 'progress_update':
+        if (message.text) {
+          appendProgressMessage(message.text);
+        }
+        break;
       case 'tool_call_status':
         if (message.tool_id && message.tool_name && message.status) {
           // If there's browser view data included, store it in the browser context
@@ -336,10 +343,15 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       case 'tool-approval-request':
         // ToolApprovalDialog 컴포넌트가 wsService를 직접 구독해 처리한다. 여기선 무시.
         break;
+      case 'claude_usage':
+        if (message.data) {
+          setUsage(message.data);
+        }
+        break;
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, interrupt, setBrowserViewData, t]);
+  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, interrupt, setBrowserViewData, setUsage, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);
