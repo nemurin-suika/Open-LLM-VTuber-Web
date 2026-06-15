@@ -74,40 +74,99 @@ function DiffPreview({
     const filePath = String(toolInput.file_path ?? '');
     const oldLines = String(toolInput.old_string ?? '').split('\n');
     const newLines = String(toolInput.new_string ?? '').split('\n');
+    const maxLines = Math.max(oldLines.length, newLines.length);
     return (
       <Box fontFamily="mono" fontSize="xs">
         <Text color="gray.400" mb="1" fontSize="11px">
           📄 {filePath}
         </Text>
-        {oldLines.map((line, i) => (
-          <Box
-            key={`del-${i}`}
-            style={{
-              background: 'rgba(255,80,80,0.13)',
-              borderLeft: '3px solid #e05252',
-              paddingLeft: '6px',
-            }}
-          >
-            <Code variant="plain" color="red.300" fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-all">
-              {`- ${line}`}
-            </Code>
+        {/* Side-by-side diff 헤더 */}
+        <Box
+          display="grid"
+          gridTemplateColumns="1fr 2px 1fr"
+          style={{ border: '1px solid #444', borderBottom: 'none', borderRadius: '6px 6px 0 0', overflow: 'hidden' }}
+        >
+          <Box style={{ background: '#2d1212', padding: '3px 8px', textAlign: 'center' }}>
+            <Text fontSize="10px" color="red.300" fontWeight="bold">기존 코드</Text>
           </Box>
-        ))}
-        <Box style={{ borderTop: '1px solid #444', margin: '3px 0' }} />
-        {newLines.map((line, i) => (
-          <Box
-            key={`add-${i}`}
-            style={{
-              background: 'rgba(80,200,80,0.13)',
-              borderLeft: '3px solid #52c052',
-              paddingLeft: '6px',
-            }}
-          >
-            <Code variant="plain" color="green.300" fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-all">
-              {`+ ${line}`}
-            </Code>
+          <Box style={{ background: '#555' }} />
+          <Box style={{ background: '#122d12', padding: '3px 8px', textAlign: 'center' }}>
+            <Text fontSize="10px" color="green.300" fontWeight="bold">변경 후</Text>
           </Box>
-        ))}
+        </Box>
+        {/* Side-by-side diff 본문 */}
+        <Box
+          display="grid"
+          gridTemplateColumns="1fr 2px 1fr"
+          style={{ border: '1px solid #444', borderTop: 'none', borderRadius: '0 0 6px 6px', overflow: 'hidden' }}
+        >
+          {/* 왼쪽: 기존 코드 */}
+          <Box style={{ background: '#1a0808', overflowX: 'auto' }}>
+            {Array.from({ length: maxLines }).map((_, i) => {
+              const line = oldLines[i] ?? '';
+              const exists = i < oldLines.length;
+              return (
+                <Box
+                  key={`del-${i}`}
+                  display="flex"
+                  alignItems="flex-start"
+                  style={{
+                    background: exists ? 'rgba(255,80,80,0.18)' : 'transparent',
+                    borderLeft: exists ? '3px solid #c04040' : '3px solid transparent',
+                    paddingLeft: '4px',
+                    minHeight: '18px',
+                  }}
+                >
+                  <Text
+                    style={{ color: '#666', marginRight: '8px', userSelect: 'none', minWidth: '24px', textAlign: 'right', fontSize: '10px', lineHeight: '18px', flexShrink: 0 }}
+                  >
+                    {exists ? i + 1 : ''}
+                  </Text>
+                  <Code
+                    variant="plain"
+                    style={{ color: exists ? '#ffaaaa' : 'transparent', fontSize: '12px', whiteSpace: 'pre', lineHeight: '18px' }}
+                  >
+                    {exists ? `- ${line}` : ' '}
+                  </Code>
+                </Box>
+              );
+            })}
+          </Box>
+          {/* 중간 구분선 */}
+          <Box style={{ background: '#555' }} />
+          {/* 오른쪽: 변경 후 */}
+          <Box style={{ background: '#081a08', overflowX: 'auto' }}>
+            {Array.from({ length: maxLines }).map((_, i) => {
+              const line = newLines[i] ?? '';
+              const exists = i < newLines.length;
+              return (
+                <Box
+                  key={`add-${i}`}
+                  display="flex"
+                  alignItems="flex-start"
+                  style={{
+                    background: exists ? 'rgba(80,200,80,0.18)' : 'transparent',
+                    borderLeft: exists ? '3px solid #40a040' : '3px solid transparent',
+                    paddingLeft: '4px',
+                    minHeight: '18px',
+                  }}
+                >
+                  <Text
+                    style={{ color: '#666', marginRight: '8px', userSelect: 'none', minWidth: '24px', textAlign: 'right', fontSize: '10px', lineHeight: '18px', flexShrink: 0 }}
+                  >
+                    {exists ? i + 1 : ''}
+                  </Text>
+                  <Code
+                    variant="plain"
+                    style={{ color: exists ? '#aaffaa' : 'transparent', fontSize: '12px', whiteSpace: 'pre', lineHeight: '18px' }}
+                  >
+                    {exists ? `+ ${line}` : ' '}
+                  </Code>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
       </Box>
     );
   }
@@ -120,20 +179,33 @@ function DiffPreview({
         <Text color="gray.400" mb="1" fontSize="11px">
           📄 {filePath} (새로 쓰기)
         </Text>
-        {contentLines.map((line, i) => (
-          <Box
-            key={`add-${i}`}
-            style={{
-              background: 'rgba(80,200,80,0.13)',
-              borderLeft: '3px solid #52c052',
-              paddingLeft: '6px',
-            }}
-          >
-            <Code variant="plain" color="green.300" fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-all">
-              {`+ ${line}`}
-            </Code>
-          </Box>
-        ))}
+        <Box style={{ border: '1px solid #444', borderRadius: '6px', overflow: 'hidden', background: '#081a08' }}>
+          {contentLines.map((line, i) => (
+            <Box
+              key={`add-${i}`}
+              display="flex"
+              alignItems="flex-start"
+              style={{
+                background: 'rgba(80,200,80,0.18)',
+                borderLeft: '3px solid #40a040',
+                paddingLeft: '4px',
+                minHeight: '18px',
+              }}
+            >
+              <Text
+                style={{ color: '#666', marginRight: '8px', userSelect: 'none', minWidth: '24px', textAlign: 'right', fontSize: '10px', lineHeight: '18px', flexShrink: 0 }}
+              >
+                {i + 1}
+              </Text>
+              <Code
+                variant="plain"
+                style={{ color: '#aaffaa', fontSize: '12px', whiteSpace: 'pre', lineHeight: '18px' }}
+              >
+                {`+ ${line}`}
+              </Code>
+            </Box>
+          ))}
+        </Box>
       </Box>
     );
   }
@@ -218,7 +290,16 @@ function ToolApprovalDialog(): JSX.Element {
       placement="center"
       role="alertdialog"
     >
-      <DialogContent>
+      <DialogContent
+        style={{
+          width: '80vw',
+          maxWidth: '1100px',
+          minWidth: '500px',
+          maxHeight: '90vh',
+          resize: 'both',
+          overflow: 'auto',
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             🛠️ 도구 사용 승인 요청
@@ -251,7 +332,7 @@ function ToolApprovalDialog(): JSX.Element {
               </Box>
             )}
             <Box
-              maxH="220px"
+              maxH="480px"
               overflowY="auto"
               bg="blackAlpha.300"
               borderRadius="md"
