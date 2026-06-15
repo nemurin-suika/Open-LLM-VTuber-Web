@@ -54,6 +54,97 @@ interface ToolApprovalRequest {
   intent?: string;
 }
 
+/** 도구별 미리보기 렌더러 — Edit/Write는 GitHub diff 스타일, 나머지는 기존 유지. */
+function DiffPreview({
+  toolName,
+  toolInput,
+}: {
+  toolName: string;
+  toolInput: Record<string, any>;
+}): JSX.Element {
+  if (toolName === 'Bash') {
+    return (
+      <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all" variant="plain">
+        {String(toolInput.command ?? '')}
+      </Code>
+    );
+  }
+
+  if (toolName === 'Edit') {
+    const filePath = String(toolInput.file_path ?? '');
+    const oldLines = String(toolInput.old_string ?? '').split('\n');
+    const newLines = String(toolInput.new_string ?? '').split('\n');
+    return (
+      <Box fontFamily="mono" fontSize="xs">
+        <Text color="gray.400" mb="1" fontSize="11px">
+          📄 {filePath}
+        </Text>
+        {oldLines.map((line, i) => (
+          <Box
+            key={`del-${i}`}
+            style={{
+              background: 'rgba(255,80,80,0.13)',
+              borderLeft: '3px solid #e05252',
+              paddingLeft: '6px',
+            }}
+          >
+            <Code variant="plain" color="red.300" fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-all">
+              {`- ${line}`}
+            </Code>
+          </Box>
+        ))}
+        <Box style={{ borderTop: '1px solid #444', margin: '3px 0' }} />
+        {newLines.map((line, i) => (
+          <Box
+            key={`add-${i}`}
+            style={{
+              background: 'rgba(80,200,80,0.13)',
+              borderLeft: '3px solid #52c052',
+              paddingLeft: '6px',
+            }}
+          >
+            <Code variant="plain" color="green.300" fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-all">
+              {`+ ${line}`}
+            </Code>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
+
+  if (toolName === 'Write') {
+    const filePath = String(toolInput.file_path ?? '');
+    const contentLines = String(toolInput.content ?? '').split('\n');
+    return (
+      <Box fontFamily="mono" fontSize="xs">
+        <Text color="gray.400" mb="1" fontSize="11px">
+          📄 {filePath} (새로 쓰기)
+        </Text>
+        {contentLines.map((line, i) => (
+          <Box
+            key={`add-${i}`}
+            style={{
+              background: 'rgba(80,200,80,0.13)',
+              borderLeft: '3px solid #52c052',
+              paddingLeft: '6px',
+            }}
+          >
+            <Code variant="plain" color="green.300" fontSize="xs" whiteSpace="pre-wrap" wordBreak="break-all">
+              {`+ ${line}`}
+            </Code>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
+
+  return (
+    <Code display="block" whiteSpace="pre-wrap" wordBreak="break-all" variant="plain">
+      {JSON.stringify(toolInput, null, 2)}
+    </Code>
+  );
+}
+
 /**
  * Claude가 도구를 쓰려 할 때 백엔드가 보내는 "tool-approval-request"를 받아
  * 승인/항상 승인/거부 선택지를 띄우는 모달. 네무린의 선택을
@@ -115,12 +206,6 @@ function ToolApprovalDialog(): JSX.Element {
 
   if (!current) return <></>;
 
-  // tool_input 미리보기 — Bash는 command만, 그 외엔 JSON 전체.
-  const preview =
-    current.tool_name === 'Bash'
-      ? String(current.tool_input.command ?? '')
-      : JSON.stringify(current.tool_input, null, 2);
-
   const pending = queue.length - 1;
 
   return (
@@ -172,14 +257,7 @@ function ToolApprovalDialog(): JSX.Element {
               borderRadius="md"
               p="2"
             >
-              <Code
-                display="block"
-                whiteSpace="pre-wrap"
-                wordBreak="break-all"
-                variant="plain"
-              >
-                {preview}
-              </Code>
+              <DiffPreview toolName={current.tool_name} toolInput={current.tool_input} />
             </Box>
           </Stack>
         </DialogBody>
