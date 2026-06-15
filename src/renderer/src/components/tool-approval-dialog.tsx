@@ -77,7 +77,7 @@ function DiffPreview({
     const maxLines = Math.max(oldLines.length, newLines.length);
     return (
       <Box fontFamily="mono" fontSize="xs">
-        <Text color="gray.400" mb="1" fontSize="11px">
+        <Text color="white" mb="1" fontSize="11px" fontWeight="bold">
           📄 {filePath}
         </Text>
         {/* Side-by-side diff 헤더 */}
@@ -124,7 +124,7 @@ function DiffPreview({
                   </Text>
                   <Code
                     variant="plain"
-                    style={{ color: exists ? '#ffaaaa' : 'transparent', fontSize: '12px', whiteSpace: 'pre', lineHeight: '18px' }}
+                    style={{ color: exists ? '#ffaaaa' : 'transparent', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '18px' }}
                   >
                     {exists ? `- ${line}` : ' '}
                   </Code>
@@ -158,7 +158,7 @@ function DiffPreview({
                   </Text>
                   <Code
                     variant="plain"
-                    style={{ color: exists ? '#aaffaa' : 'transparent', fontSize: '12px', whiteSpace: 'pre', lineHeight: '18px' }}
+                    style={{ color: exists ? '#aaffaa' : 'transparent', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '18px' }}
                   >
                     {exists ? `+ ${line}` : ' '}
                   </Code>
@@ -176,7 +176,7 @@ function DiffPreview({
     const contentLines = String(toolInput.content ?? '').split('\n');
     return (
       <Box fontFamily="mono" fontSize="xs">
-        <Text color="gray.400" mb="1" fontSize="11px">
+        <Text color="white" mb="1" fontSize="11px" fontWeight="bold">
           📄 {filePath} (새로 쓰기)
         </Text>
         <Box style={{ border: '1px solid #444', borderRadius: '6px', overflow: 'hidden', background: '#081a08' }}>
@@ -199,7 +199,7 @@ function DiffPreview({
               </Text>
               <Code
                 variant="plain"
-                style={{ color: '#aaffaa', fontSize: '12px', whiteSpace: 'pre', lineHeight: '18px' }}
+                style={{ color: '#aaffaa', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '18px' }}
               >
                 {`+ ${line}`}
               </Code>
