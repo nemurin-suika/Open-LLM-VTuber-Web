@@ -14,12 +14,17 @@ export const useInterrupt = () => {
   const { stopCurrentAudioAndLipSync } = useAudioTask();
 
   const interrupt = (sendSignal = true) => {
-    if (aiState !== 'thinking-speaking') return;
+    // thinking-speaking: 정상 응답 중 인터럽트
+    // idle: 장기 스킬 작업(claude -p 멀티턴 등) 중 상태가 idle로 잘못 표시된 경우 abort 신호 전송
+    const canInterrupt = aiState === 'thinking-speaking' || aiState === 'idle';
+    if (!canInterrupt) return;
     console.log('Interrupting conversation chain');
 
-    stopCurrentAudioAndLipSync();
-
-    audioTaskQueue.clearQueue();
+    // 오디오/립싱크 중단은 실제로 재생 중인 thinking-speaking 상태에서만
+    if (aiState === 'thinking-speaking') {
+      stopCurrentAudioAndLipSync();
+      audioTaskQueue.clearQueue();
+    }
 
     setAiState('interrupted');
 

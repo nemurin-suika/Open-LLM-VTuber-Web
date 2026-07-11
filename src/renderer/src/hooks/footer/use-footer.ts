@@ -33,9 +33,10 @@ export const useFooter = () => {
   };
 
   const handleInterrupt = () => {
-    if (aiState === AiStateEnum.THINKING_SPEAKING) {
+    if (aiState === AiStateEnum.THINKING_SPEAKING || aiState === AiStateEnum.IDLE) {
       interrupt();
-      if (autoStartMicOn) {
+      // 마이크 자동 시작은 실제로 말하고 있는 thinking-speaking 상태에서만
+      if (autoStartMicOn && aiState === AiStateEnum.THINKING_SPEAKING) {
         startMic();
       }
     } else if (settings.allowButtonTrigger) {
