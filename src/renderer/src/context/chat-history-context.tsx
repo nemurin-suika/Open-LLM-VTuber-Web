@@ -17,6 +17,7 @@ interface ChatHistoryState {
   appendAIMessage: (content: string, name?: string, avatar?: string) => void;
   appendOrUpdateToolCallMessage: (toolMessageData: Partial<Message>) => void; // Accept partial data
   appendProgressMessage: (text: string) => void;
+  appendImageMessage: (imageBase64: string, mimeType: string, label?: string) => void;
   setMessages: (messages: Message[]) => void; // Use the unified Message type
   setHistoryList: (
     value: HistoryInfo[] | ((prev: HistoryInfo[]) => HistoryInfo[])
@@ -127,6 +128,26 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
   }, []);
 
   /**
+   * Append an image_display message to the chat history
+   * @param imageBase64 - base64-encoded image data
+   * @param mimeType - MIME type of the image
+   * @param label - optional label (URL or source name)
+   */
+  const appendImageMessage = useCallback((imageBase64: string, mimeType: string, label?: string) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content: label || '',
+      role: 'ai',
+      type: 'image_display',
+      timestamp: new Date().toISOString(),
+      image_base64: imageBase64,
+      mime_type: mimeType,
+      image_label: label,
+    };
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  }, []);
+
+  /**
    * Append or update a Tool Call message using its tool_id
    * @param toolMessageData - The partial tool call message data from WebSocket
    */
@@ -225,6 +246,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       appendAIMessage,
       appendOrUpdateToolCallMessage, // Add to context value
       appendProgressMessage,
+      appendImageMessage,
       setMessages,
       setHistoryList,
       setCurrentHistoryUid,
@@ -243,6 +265,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       appendAIMessage,
       appendOrUpdateToolCallMessage, // Add dependency
       appendProgressMessage,
+      appendImageMessage,
       updateHistoryList,
       fullResponse,
       appendResponse,

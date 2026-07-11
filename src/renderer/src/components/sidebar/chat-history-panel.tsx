@@ -66,6 +66,23 @@ function ChatHistoryPanel(): JSX.Element {
                     </Flex>
                   );
                 }
+                // Check if it's an image display message
+                if (msg.type === 'image_display' && msg.image_base64 && msg.mime_type) {
+                  return (
+                    <Box key={msg.id} px={2} py={1}>
+                      <img
+                        src={`data:${msg.mime_type};base64,${msg.image_base64}`}
+                        alt={msg.image_label || '이미지'}
+                        style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: '8px', objectFit: 'contain' }}
+                      />
+                      {msg.image_label && (
+                        <Text fontSize="xs" color="gray.500" mt={1} noOfLines={1} title={msg.image_label}>
+                          {msg.image_label}
+                        </Text>
+                      )}
+                    </Box>
+                  );
+                }
                 // Check if it's a tool call message
                 if (msg.type === 'tool_call_status') {
                   return (

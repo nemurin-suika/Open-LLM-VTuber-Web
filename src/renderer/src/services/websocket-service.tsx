@@ -36,10 +36,14 @@ export interface Message {
   avatar?: string;
 
   // Fields for different message types (make optional)
-  type?: 'text' | 'tool_call_status' | 'progress_update'; // Add possible types, default to 'text' if omitted
+  type?: 'text' | 'tool_call_status' | 'progress_update' | 'image_display'; // Add possible types, default to 'text' if omitted
   tool_id?: string; // Specific to tool calls
   tool_name?: string; // Specific to tool calls
   status?: 'running' | 'completed' | 'error'; // Specific to tool calls
+  // Fields for image_display type
+  image_base64?: string;
+  mime_type?: string;
+  image_label?: string;
 }
 
 export interface Actions {
