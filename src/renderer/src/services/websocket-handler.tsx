@@ -106,6 +106,12 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           resolve();
         }));
         break;
+      case 'interrupt-success':
+        // 인터럽트가 백엔드까지 전달됐음을 자막으로 표시 (2초 후 자동 지움)
+        console.log('[Handler] interrupt-success → 자막 표시');
+        setSubtitleText('⚡ 중단됨');
+        setTimeout(() => setSubtitleText(''), 2000);
+        break;
       case 'speech-ignored':
         // 키워드 없어서 무시된 음성 → 타이머를 재개(재시작 아님)하고 idle로 복귀
         proactiveSpeakCtx?.markResume();
@@ -115,7 +121,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown control command:', controlText);
     }
-  }, [setAiState, clearResponse, setForceNewMessage, startMic, stopMic, proactiveSpeakCtx]);
+  }, [setAiState, clearResponse, setForceNewMessage, startMic, stopMic, proactiveSpeakCtx, setSubtitleText]);
 
   const handleWebSocketMessage = useCallback((message: MessageEvent) => {
     console.log('Received message from server:', message);
