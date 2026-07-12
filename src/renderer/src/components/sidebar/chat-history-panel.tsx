@@ -29,7 +29,8 @@ function ChatHistoryPanel(): JSX.Element {
      (msg.type === 'tool_call_status' && msg.status === 'running') || // Keep running tools
      (msg.type === 'tool_call_status' && msg.status === 'completed') || // Keep completed tools
      (msg.type === 'tool_call_status' && msg.status === 'error') || // Keep error tools
-     msg.type === 'progress_update', // Keep progress updates
+     msg.type === 'progress_update' || // Keep progress updates
+     msg.type === 'image_display', // Keep image display messages (explicit, not via msg.content fallback)
   );
 
   return (

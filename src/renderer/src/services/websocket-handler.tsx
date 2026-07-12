@@ -368,14 +368,22 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
     wsService.connect(wsUrl);
   }, [wsUrl]);
 
+  // handleWebSocketMessage를 ref로 최신값 유지:
+  // dependency 변경 시 함수가 재생성되어도 구독을 해제/재등록하지 않도록 한다.
+  // 구독 해제 → 재구독 사이에 도착한 image_display 등 메시지가 버려지는 문제를 방지.
+  const handleWebSocketMessageRef = useRef(handleWebSocketMessage);
+  useEffect(() => {
+    handleWebSocketMessageRef.current = handleWebSocketMessage;
+  }, [handleWebSocketMessage]);
+
   useEffect(() => {
     const stateSubscription = wsService.onStateChange(setWsState);
-    const messageSubscription = wsService.onMessage(handleWebSocketMessage);
+    const messageSubscription = wsService.onMessage((msg) => handleWebSocketMessageRef.current(msg));
     return () => {
       stateSubscription.unsubscribe();
       messageSubscription.unsubscribe();
     };
-  }, [wsUrl, handleWebSocketMessage]);
+  }, [wsUrl]); // wsUrl 변경(재연결) 시에만 재구독
 
   const webSocketContextValue = useMemo(() => ({
     sendMessage: wsService.sendMessage.bind(wsService),
