@@ -3,7 +3,7 @@ import { Box, Button, Menu } from '@chakra-ui/react';
 import {
   FiSettings, FiClock, FiPlus, FiChevronLeft, FiUsers, FiLayers
 } from 'react-icons/fi';
-import { memo } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { sidebarStyles } from './sidebar-styles';
 import SettingUI from './setting/setting-ui';
 import ChatHistoryPanel from './chat-history-panel';
@@ -27,6 +27,13 @@ interface HeaderButtonsProps {
   currentMode: 'window' | 'pet'
   isElectron: boolean
 }
+
+interface SidebarContentProps extends HeaderButtonsProps {
+  bottomCollapsed: boolean
+  onToggleBottomCollapsed: () => void
+}
+
+const BOTTOM_COLLAPSED_STORAGE_KEY = 'sidebar-bottom-tab-collapsed'
 
 // Reusable components
 const ToggleButton = memo(({ isCollapsed, onToggle }: {
@@ -111,13 +118,15 @@ const HeaderButtons = memo(({ onSettingsOpen, onNewHistory, setMode, currentMode
 
 HeaderButtons.displayName = 'HeaderButtons';
 
-const SidebarContent = memo(({ 
-  onSettingsOpen, 
-  onNewHistory, 
-  setMode, 
+const SidebarContent = memo(({
+  onSettingsOpen,
+  onNewHistory,
+  setMode,
   currentMode,
-  isElectron
-}: HeaderButtonsProps) => (
+  isElectron,
+  bottomCollapsed,
+  onToggleBottomCollapsed,
+}: SidebarContentProps) => (
   <Box {...sidebarStyles.sidebar.content}>
     <Box {...sidebarStyles.sidebar.header}>
       <HeaderButtons
@@ -130,7 +139,10 @@ const SidebarContent = memo(({
     </Box>
     <ClaudeUsageBar />
     <ChatHistoryPanel />
-    <BottomTab />
+    <BottomTab
+      collapsed={bottomCollapsed}
+      onToggleCollapsed={onToggleBottomCollapsed}
+    />
   </Box>
 ));
 
@@ -148,6 +160,29 @@ function Sidebar({ isCollapsed = false, onToggle }: SidebarProps): JSX.Element {
     isElectron,
   } = useSidebar();
 
+  const [bottomCollapsed, setBottomCollapsed] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(BOTTOM_COLLAPSED_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        BOTTOM_COLLAPSED_STORAGE_KEY,
+        bottomCollapsed ? 'true' : 'false',
+      );
+    } catch {
+      // ignore storage errors (private mode, quota, etc.)
+    }
+  }, [bottomCollapsed]);
+
+  const toggleBottomCollapsed = useCallback(() => {
+    setBottomCollapsed((prev) => !prev);
+  }, []);
+
   return (
     <Box {...sidebarStyles.sidebar.container(isCollapsed)}>
       <ToggleButton isCollapsed={isCollapsed} onToggle={onToggle} />
@@ -159,6 +194,8 @@ function Sidebar({ isCollapsed = false, onToggle }: SidebarProps): JSX.Element {
           setMode={setMode}
           currentMode={currentMode}
           isElectron={isElectron}
+          bottomCollapsed={bottomCollapsed}
+          onToggleBottomCollapsed={toggleBottomCollapsed}
         />
       )}
 
