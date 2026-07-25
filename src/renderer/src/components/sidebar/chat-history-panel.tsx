@@ -5,7 +5,7 @@
 /* eslint-disable import/order */
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable react/require-default-props */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Spinner, Flex, Text, Icon } from '@chakra-ui/react';
 import { sidebarStyles, chatPanelStyles } from './sidebar-styles';
 import { MainContainer, ChatContainer, MessageList as ChatMessageList, Message as ChatMessage, Avatar as ChatAvatar } from '@chatscope/chat-ui-kit-react';
@@ -24,6 +24,19 @@ function ChatHistoryPanel(): JSX.Element {
   const { confName } = useConfig();
   const { baseUrl } = useWebSocket();
   const userName = "Me";
+
+  // 클릭한 이미지 확대 표시용 상태. src와 label(파일명 등)을 함께 저장한다.
+  const [enlargedImage, setEnlargedImage] = useState<{ src: string; label?: string } | null>(null);
+
+  // Esc 키로 확대 뷰 닫기
+  useEffect(() => {
+    if (!enlargedImage) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEnlargedImage(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [enlargedImage]);
 
   const validMessages = messages.filter((msg) => msg.content || // Keep messages with content
      (msg.type === 'tool_call_status' && msg.status === 'running') || // Keep running tools
@@ -69,12 +82,20 @@ function ChatHistoryPanel(): JSX.Element {
                 }
                 // Check if it's an image display message
                 if (msg.type === 'image_display' && msg.image_base64 && msg.mime_type) {
+                  const imgSrc = `data:${msg.mime_type};base64,${msg.image_base64}`;
                   return (
                     <Box key={msg.id} px={2} py={1}>
                       <img
-                        src={`data:${msg.mime_type};base64,${msg.image_base64}`}
+                        src={imgSrc}
                         alt={msg.image_label || '이미지'}
-                        style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: '8px', objectFit: 'contain' }}
+                        onClick={() => setEnlargedImage({ src: imgSrc, label: msg.image_label })}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '240px',
+                          borderRadius: '8px',
+                          objectFit: 'contain',
+                          cursor: 'zoom-in',
+                        }}
                       />
                       {msg.image_label && (
                         <Text fontSize="xs" color="gray.500" mt={1} noOfLines={1} title={msg.image_label}>
@@ -188,6 +209,63 @@ function ChatHistoryPanel(): JSX.Element {
           </ChatMessageList>
         </ChatContainer>
       </MainContainer>
+
+      {enlargedImage && (
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="blackAlpha.800"
+          zIndex={9999}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          onClick={() => setEnlargedImage(null)}
+          cursor="zoom-out"
+        >
+          <Box
+            position="relative"
+            maxW="95vw"
+            maxH="95vh"
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={enlargedImage.src}
+              alt={enlargedImage.label || '이미지 확대'}
+              style={{
+                maxWidth: '95vw',
+                maxHeight: '90vh',
+                objectFit: 'contain',
+                borderRadius: '8px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+              }}
+            />
+            {enlargedImage.label && (
+              <Text mt={2} fontSize="sm" color="whiteAlpha.900" textAlign="center" maxW="90vw" noOfLines={2}>
+                {enlargedImage.label}
+              </Text>
+            )}
+            <Text
+              position="absolute"
+              top={2}
+              right={3}
+              fontSize="xl"
+              color="whiteAlpha.900"
+              cursor="pointer"
+              userSelect="none"
+              onClick={() => setEnlargedImage(null)}
+              title="닫기 (Esc)"
+            >
+              ×
+            </Text>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }
