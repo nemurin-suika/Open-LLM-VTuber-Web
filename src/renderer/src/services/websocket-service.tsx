@@ -100,6 +100,8 @@ export interface MessageEvent {
     wsUrl: string;
     sessionId?: string;
   };
+  // agent_status 이벤트 필드 — 채팅창 마지막 스피너 표시용
+  detail?: string;
 }
 
 // Get translation function for error messages

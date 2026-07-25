@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 // Main component
 function ChatHistoryPanel(): JSX.Element {
   const { t } = useTranslation();
-  const { messages } = useChatHistory(); // Get messages directly from context
+  const { messages, agentStatus } = useChatHistory(); // Get messages directly from context
   const { confName } = useConfig();
   const { baseUrl } = useWebSocket();
   const userName = "Me";
@@ -166,6 +166,24 @@ function ChatHistoryPanel(): JSX.Element {
                   </ChatMessage>
                 );
               })
+            )}
+            {agentStatus.status === 'active' && (
+              <Flex
+                align="center"
+                gap={2}
+                px={3}
+                py={2}
+                mt={1}
+                borderRadius="md"
+                bg="whiteAlpha.100"
+              >
+                <Spinner size="xs" color="purple.300" />
+                <Text fontSize="xs" color="whiteAlpha.800" fontStyle="italic">
+                  {agentStatus.detail
+                    ? `미즈키 ${agentStatus.detail}`
+                    : '미즈키 응답 준비 중'}
+                </Text>
+              </Flex>
             )}
           </ChatMessageList>
         </ChatContainer>

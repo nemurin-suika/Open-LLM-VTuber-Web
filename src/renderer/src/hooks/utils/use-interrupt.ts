@@ -8,7 +8,7 @@ import { useAudioTask } from './use-audio-task';
 export const useInterrupt = () => {
   const { aiState, setAiState } = useAiState();
   const { sendMessage } = useWebSocket();
-  const { fullResponse, clearResponse } = useChatHistory();
+  const { fullResponse, clearResponse, setAgentStatus } = useChatHistory();
   // const { currentModel } = useLive2DModel();
   const { subtitleText, setSubtitleText } = useSubtitle();
   const { stopCurrentAudioAndLipSync } = useAudioTask();
@@ -36,6 +36,9 @@ export const useInterrupt = () => {
     }
 
     clearResponse();
+
+    // 스피너 즉시 끄기: 인터럽트 시 백엔드 finally 블록의 idle 이벤트를 기다리지 않고 프론트에서 선제적으로 종료
+    setAgentStatus({ status: 'idle', timestamp: Date.now() });
 
     if (subtitleText === 'Thinking...') {
       setSubtitleText('');

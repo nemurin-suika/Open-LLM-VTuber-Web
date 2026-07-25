@@ -6,6 +6,17 @@ import { Message } from '@/services/websocket-service';
 import { HistoryInfo } from './websocket-context';
 
 /**
+ * Agent 세션 활동 상태 — 채팅창 마지막에 스피너로 표시하기 위한 별도 상태.
+ * 백엔드가 응답 생성/툴 실행/압축 등 활동 중일 때 status="active"로 브로드캐스트,
+ * 완전히 idle이 되면 status="idle" 전송.
+ */
+export interface AgentActivityStatus {
+  status: 'active' | 'idle';
+  detail?: string; // 현재 무엇을 하는 중인지 짧은 설명 (예: "생각 중", "툴 실행 중 · adb_shell")
+  timestamp?: number;
+}
+
+/**
  * Chat history context state interface
  * @interface ChatHistoryState
  */
@@ -29,6 +40,8 @@ interface ChatHistoryState {
   appendResponse: (text: string) => void;
   clearResponse: () => void;
   setForceNewMessage: (value: boolean) => void;
+  agentStatus: AgentActivityStatus;
+  setAgentStatus: (status: AgentActivityStatus) => void;
 }
 
 /**
@@ -62,6 +75,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
   );
   const [fullResponse, setFullResponse] = useState(DEFAULT_HISTORY.fullResponse);
   const [forceNewMessage, setForceNewMessage] = useState<boolean>(false);
+  const [agentStatus, setAgentStatus] = useState<AgentActivityStatus>({ status: 'idle' });
 
   /**
    * Append a human message to the chat history
@@ -256,6 +270,8 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       appendResponse,
       clearResponse,
       setForceNewMessage,
+      agentStatus,
+      setAgentStatus,
     }),
     [
       messages,
@@ -271,6 +287,7 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       appendResponse,
       clearResponse,
       setForceNewMessage,
+      agentStatus,
     ],
   );
 

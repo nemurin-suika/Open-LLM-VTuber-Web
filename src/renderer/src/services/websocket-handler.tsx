@@ -36,7 +36,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { aiState, setAiState, backendSynthComplete, setBackendSynthComplete } = useAiState();
   const { setModelInfo } = useLive2DConfig();
   const { setSubtitleText } = useSubtitle();
-  const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage } = useChatHistory();
+  const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, setAgentStatus } = useChatHistory();
   const { addAudioTask } = useAudioTask();
   const bgUrlContext = useBgUrl();
   const { confUid, setConfName, setConfUid, setConfigFiles } = useConfig();
@@ -87,9 +87,22 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         audioTaskQueue.clearQueue();
         clearResponse();
         audioManager.saveBaseVolume();
+        // 스피너 유지: 백엔드 파이프라인이 시작됐음을 확실히 알린다.
+        setAgentStatus({
+          status: 'active',
+          detail: '미즈키 응답 준비 중',
+          timestamp: Date.now() / 1000,
+        });
         break;
       case 'conversation-chain-end':
         console.log('[Handler] conversation-chain-end → scheduling idle task');
+        // 대화 턴 자체가 완전히 끝났으므로 스피너를 즉시 idle 처리한다.
+        // (백엔드 letta_agent finally 블록의 agent_status idle과 이중 안전장치)
+        setAgentStatus({
+          status: 'idle',
+          detail: undefined,
+          timestamp: Date.now() / 1000,
+        });
         audioTaskQueue.addTask(() => new Promise<void>((resolve) => {
           setAiState((currentState: AiState) => {
             if (currentState === 'thinking-speaking') {
@@ -296,6 +309,11 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         break;
       case 'conversation-chain-end':
         console.log('[Handler] conversation-chain-end (direct type) → scheduling idle task');
+        setAgentStatus({
+          status: 'idle',
+          detail: undefined,
+          timestamp: Date.now() / 1000,
+        });
         audioTaskQueue.addTask(() => new Promise<void>((resolve) => {
           setAiState((currentState: AiState) => {
             if (currentState === 'thinking-speaking') {
@@ -359,10 +377,18 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           setUsage(message.data);
         }
         break;
+      case 'agent_status':
+        // 세션 활동 상태 — 채팅창 마지막 스피너 표시 제어
+        setAgentStatus({
+          status: (message.status === 'active' ? 'active' : 'idle'),
+          detail: message.detail,
+          timestamp: typeof message.timestamp === 'number' ? message.timestamp : undefined,
+        });
+        break;
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, t]);
+  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

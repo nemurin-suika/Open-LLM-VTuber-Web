@@ -14,7 +14,7 @@ export function useTextInput() {
   const wsContext = useWebSocket();
   const { aiState } = useAiState();
   const { interrupt } = useInterrupt();
-  const { appendHumanMessage } = useChatHistory();
+  const { appendHumanMessage, setAgentStatus } = useChatHistory();
   const { stopMic, autoStopMic } = useVAD();
   const { captureAllMedia, captureSystemAudio } = useMediaCapture();
   const { resetIdleTimer } = useProactiveSpeak();
@@ -28,6 +28,15 @@ export function useTextInput() {
     if (!inputText.trim() || !wsContext) return;
     // Removed: auto-interrupt when AI is speaking.
     // Text input is now queued and plays after the current output.
+
+    // 사용자가 메시지를 전송한 즉시 스피너를 켜서 세션이 처리 중임을 알린다.
+    // 백엔드의 conversation-chain-start / agent_status active 이벤트가 도착하면
+    // detail이 덮여쓰기되어 자연스럽게 진행 상태로 이어진다.
+    setAgentStatus({
+      status: 'active',
+      detail: '요청 전달 중',
+      timestamp: Date.now() / 1000,
+    });
 
     const [images, system_audio] = await Promise.all([
       captureAllMedia(),
