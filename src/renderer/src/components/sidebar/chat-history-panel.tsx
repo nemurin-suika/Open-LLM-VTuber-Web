@@ -227,19 +227,22 @@ function ChatHistoryPanel(): JSX.Element {
         >
           <Box
             position="relative"
-            maxW="95vw"
-            maxH="95vh"
+            w="95vw"
+            h="95vh"
             display="flex"
             flexDirection="column"
             alignItems="center"
+            justifyContent="center"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={enlargedImage.src}
               alt={enlargedImage.label || '이미지 확대'}
               style={{
-                maxWidth: '95vw',
-                maxHeight: '90vh',
+                maxWidth: '100%',
+                maxHeight: enlargedImage.label ? 'calc(100% - 40px)' : '100%',
+                width: 'auto',
+                height: 'auto',
                 objectFit: 'contain',
                 borderRadius: '8px',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
