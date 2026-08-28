@@ -173,13 +173,13 @@ function General({ onSave, onCancel }: GeneralProps): JSX.Element {
         value={settings.pastScreenshotCount.toString()}
         onChange={(value) => {
           const n = parseInt(value as string, 10);
-          if (!Number.isNaN(n) && n >= 0 && n <= 20) {
+          if (!Number.isNaN(n) && n >= 0 && n <= 200) {
             handleSettingChange("pastScreenshotCount", n);
           } else if (value === "") {
             handleSettingChange("pastScreenshotCount", settings.pastScreenshotCount);
           }
         }}
-        help="현재 스크린샷 외에 과거 N장을 함께 LLM에 전송 (0~20)"
+        help="현재 스크린샷 외에 과거 N장을 함께 LLM에 전송 (0~200). 장수가 많을수록 응답이 느려짐"
       />
 
       <InputField
@@ -187,13 +187,44 @@ function General({ onSave, onCancel }: GeneralProps): JSX.Element {
         value={settings.pastScreenshotIntervalSec.toString()}
         onChange={(value) => {
           const n = parseFloat(value as string);
-          if (!Number.isNaN(n) && n >= 1 && n <= 30) {
+          if (!Number.isNaN(n) && n >= 1 && n <= 600) {
             handleSettingChange("pastScreenshotIntervalSec", n);
           } else if (value === "") {
             handleSettingChange("pastScreenshotIntervalSec", settings.pastScreenshotIntervalSec);
           }
         }}
-        help="과거 N장이 K초 간격(예: count=3, interval=2 → 6s, 4s, 2s 전 스크린샷)"
+        help="과거 N장이 K초 간격(예: count=10, interval=20 → 최근 200초를 20초 간격으로)"
+      />
+
+      <InputField
+        label="스크린샷 버퍼 길이(초)"
+        value={settings.screenshotBufferSeconds.toString()}
+        onChange={(value) => {
+          const n = parseFloat(value as string);
+          if (!Number.isNaN(n) && n >= 10 && n <= 3600) {
+            handleSettingChange("screenshotBufferSeconds", n);
+          } else if (value === "") {
+            handleSettingChange("screenshotBufferSeconds", settings.screenshotBufferSeconds);
+          }
+        }}
+        help="화면을 몇 초치까지 보관할지 (10~3600). 장수x간격보다 커야 함"
+      />
+
+      <InputField
+        label="스크린샷 캡처 주기(초)"
+        value={settings.screenshotCaptureIntervalSec.toString()}
+        onChange={(value) => {
+          const n = parseFloat(value as string);
+          if (!Number.isNaN(n) && n >= 0.5 && n <= 60) {
+            handleSettingChange("screenshotCaptureIntervalSec", n);
+          } else if (value === "") {
+            handleSettingChange(
+              "screenshotCaptureIntervalSec",
+              settings.screenshotCaptureIntervalSec,
+            );
+          }
+        }}
+        help="버퍼에 몇 초마다 1장 담을지 (0.5~60). 짧을수록 메모리 사용량 증가"
       />
 
       <InputField

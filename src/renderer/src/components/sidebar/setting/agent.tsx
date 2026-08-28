@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import { HStack, Stack, Text } from '@chakra-ui/react';
+import { HStack, Stack, Text, Textarea } from '@chakra-ui/react';
 import { useTranslation } from 'react-i18next';
 import { settingStyles } from './setting-styles';
 import { useAgentSettings } from '@/hooks/sidebar/setting/use-agent-settings';
@@ -20,6 +20,7 @@ function Agent({ onSave, onCancel }: AgentProps): JSX.Element {
     handleIdleSecondsChange,
     handleAllowButtonTriggerChange,
     handleModeChange,
+    handleProactiveInstructionChange,
   } = useAgentSettings({ onSave, onCancel });
 
   return (
@@ -52,6 +53,22 @@ function Agent({ onSave, onCancel }: AgentProps): JSX.Element {
                 <Radio value="private">개인용 (네무린과 1:1, 화면+오디오 본다)</Radio>
               </HStack>
             </RadioGroup>
+          </Stack>
+
+          <Stack gap={2}>
+            <Text fontSize="sm" fontWeight="medium">Proactive 지시문</Text>
+            <Text fontSize="xs" color="gray.400">
+              proactive 트리거마다 기본 프롬프트 뒤에 덧붙여 전달됨.
+              비워두면 기존 동작 그대로. 예: 지금은 방해 금지, 조용히 지켜만 보고
+              꼭 필요할 때만 무음 태그로 말해.
+            </Text>
+            <Textarea
+              value={settings.proactiveInstruction}
+              onChange={(e) => handleProactiveInstructionChange(e.target.value)}
+              placeholder="예: 지금은 경기 관전 중이야. 웬만하면 조용히 있고 큰 사건 있을 때만 짧게 말해."
+              rows={4}
+              fontSize="sm"
+            />
           </Stack>
         </>
       )}

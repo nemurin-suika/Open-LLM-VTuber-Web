@@ -14,6 +14,7 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
     idleSecondsToSpeak: persistedSettings.idleSecondsToSpeak,
     allowButtonTrigger: persistedSettings.allowButtonTrigger,
     mode: persistedSettings.mode,
+    proactiveInstruction: persistedSettings.proactiveInstruction,
   });
 
   const [originalSettings, setOriginalSettings] = useState({
@@ -45,6 +46,13 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
     setTempSettings((prev) => ({
       ...prev,
       allowButtonTrigger: checked,
+    }));
+  }, []);
+
+  const handleProactiveInstructionChange = useCallback((value: string) => {
+    setTempSettings((prev) => ({
+      ...prev,
+      proactiveInstruction: value,
     }));
   }, []);
 
@@ -83,5 +91,6 @@ export function useAgentSettings({ onSave, onCancel }: UseAgentSettingsProps = {
     handleIdleSecondsChange,
     handleAllowButtonTriggerChange,
     handleModeChange,
+    handleProactiveInstructionChange,
   };
 }

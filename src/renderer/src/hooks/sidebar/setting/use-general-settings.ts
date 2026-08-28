@@ -16,9 +16,16 @@ export const DEFAULT_IMAGE_MAX_WIDTH = 0;
 // 과거 스크린샷 N장을 N*interval, (N-1)*interval, ..., 1*interval 초 전에서 가져옴
 // 예: count=3, interval=2 → 2s, 4s, 6s 전 스크린샷 같이 전송
 export const PAST_SCREENSHOT_COUNT_KEY = 'appPastScreenshotCount';
-export const DEFAULT_PAST_SCREENSHOT_COUNT = 3;
+export const DEFAULT_PAST_SCREENSHOT_COUNT = 10;
+export const MAX_PAST_SCREENSHOT_COUNT = 200;
 export const PAST_SCREENSHOT_INTERVAL_KEY = 'appPastScreenshotIntervalSec';
-export const DEFAULT_PAST_SCREENSHOT_INTERVAL = 2;
+export const DEFAULT_PAST_SCREENSHOT_INTERVAL = 20;
+export const MAX_PAST_SCREENSHOT_INTERVAL = 600;
+// 스크린샷 롤링 버퍼 길이 / 캡처 주기 (screen-capture-context가 같은 키를 읽음)
+export const SCREENSHOT_BUFFER_SECONDS_KEY = 'appScreenshotBufferSeconds';
+export const DEFAULT_SCREENSHOT_BUFFER_SECONDS = 300;
+export const SCREENSHOT_CAPTURE_INTERVAL_KEY = 'appScreenshotCaptureIntervalSec';
+export const DEFAULT_SCREENSHOT_CAPTURE_INTERVAL = 2;
 // LLM 전송 시 시스템 오디오 길이 (롤링 버퍼는 60s 고정, 그 안에서 잘라 보냄)
 export const SYSTEM_AUDIO_SEND_SECONDS_KEY = 'appSystemAudioSendSeconds';
 export const DEFAULT_SYSTEM_AUDIO_SEND_SECONDS = 10;
@@ -38,6 +45,8 @@ interface GeneralSettings {
   imageMaxWidth: number;
   pastScreenshotCount: number;
   pastScreenshotIntervalSec: number;
+  screenshotBufferSeconds: number;
+  screenshotCaptureIntervalSec: number;
   systemAudioSendSeconds: number;
 }
 
@@ -79,7 +88,7 @@ const loadInitialPastScreenshotCount = (): number => {
   const v = localStorage.getItem(PAST_SCREENSHOT_COUNT_KEY);
   if (v) {
     const n = parseInt(v, 10);
-    if (!Number.isNaN(n) && n >= 0 && n <= 20) return n;
+    if (!Number.isNaN(n) && n >= 0 && n <= MAX_PAST_SCREENSHOT_COUNT) return n;
   }
   return DEFAULT_PAST_SCREENSHOT_COUNT;
 };
@@ -88,9 +97,27 @@ const loadInitialPastScreenshotInterval = (): number => {
   const v = localStorage.getItem(PAST_SCREENSHOT_INTERVAL_KEY);
   if (v) {
     const n = parseFloat(v);
-    if (!Number.isNaN(n) && n >= 1 && n <= 30) return n;
+    if (!Number.isNaN(n) && n >= 1 && n <= MAX_PAST_SCREENSHOT_INTERVAL) return n;
   }
   return DEFAULT_PAST_SCREENSHOT_INTERVAL;
+};
+
+const loadInitialScreenshotBufferSeconds = (): number => {
+  const v = localStorage.getItem(SCREENSHOT_BUFFER_SECONDS_KEY);
+  if (v) {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n) && n >= 10 && n <= 3600) return n;
+  }
+  return DEFAULT_SCREENSHOT_BUFFER_SECONDS;
+};
+
+const loadInitialScreenshotCaptureInterval = (): number => {
+  const v = localStorage.getItem(SCREENSHOT_CAPTURE_INTERVAL_KEY);
+  if (v) {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n) && n >= 0.5 && n <= 60) return n;
+  }
+  return DEFAULT_SCREENSHOT_CAPTURE_INTERVAL;
 };
 
 const loadInitialSystemAudioSendSeconds = (): number => {
@@ -148,6 +175,8 @@ export const useGeneralSettings = ({
     imageMaxWidth: loadInitialImageMaxWidth(),
     pastScreenshotCount: loadInitialPastScreenshotCount(),
     pastScreenshotIntervalSec: loadInitialPastScreenshotInterval(),
+    screenshotBufferSeconds: loadInitialScreenshotBufferSeconds(),
+    screenshotCaptureIntervalSec: loadInitialScreenshotCaptureInterval(),
     systemAudioSendSeconds: loadInitialSystemAudioSendSeconds(),
   };
 
@@ -175,6 +204,11 @@ export const useGeneralSettings = ({
     localStorage.setItem(IMAGE_MAX_WIDTH_KEY, settings.imageMaxWidth.toString());
     localStorage.setItem(PAST_SCREENSHOT_COUNT_KEY, settings.pastScreenshotCount.toString());
     localStorage.setItem(PAST_SCREENSHOT_INTERVAL_KEY, settings.pastScreenshotIntervalSec.toString());
+    localStorage.setItem(SCREENSHOT_BUFFER_SECONDS_KEY, settings.screenshotBufferSeconds.toString());
+    localStorage.setItem(
+      SCREENSHOT_CAPTURE_INTERVAL_KEY,
+      settings.screenshotCaptureIntervalSec.toString(),
+    );
     localStorage.setItem(SYSTEM_AUDIO_SEND_SECONDS_KEY, settings.systemAudioSendSeconds.toString());
   }, [settings, bgUrlContext, baseUrl, onWsUrlChange, onBaseUrlChange, setShowSubtitle]);
 

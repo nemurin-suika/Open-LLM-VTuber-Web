@@ -18,18 +18,41 @@ interface ScreenCaptureContextType {
   startCapture: () => Promise<void>;
   stopCapture: () => void;
   // 과거 N장을 요청 시점 기준 secondsAgoList에서 가장 가까운 버퍼 항목으로 반환.
+  // toleranceMs를 넘게 벗어난 항목은 제외. 생략 시 30초.
   // 캡처가 OFF이거나 버퍼에 데이터가 없으면 빈 배열.
-  getPastScreenshots: (secondsAgoList: number[]) => BufferedScreenshot[];
+  getPastScreenshots: (
+    secondsAgoList: number[],
+    toleranceMs?: number,
+  ) => BufferedScreenshot[];
 }
 
 const ScreenCaptureContext = createContext<ScreenCaptureContextType | undefined>(undefined);
 
-// 롤링 버퍼: 최대 60초 보관 (충분히 큼). 매초 1장 push.
-const SCREENSHOT_BUFFER_SECONDS = 60;
-const SCREENSHOT_CAPTURE_INTERVAL_MS = 1000;
+// 롤링 버퍼 길이 / 캡처 주기는 설정으로 조정 가능 (localStorage, 재시작 없이 반영).
+// 기본 300초 보관 + 2초마다 1장 → 최대 150장 유지.
+const SCREENSHOT_BUFFER_SECONDS_KEY = 'appScreenshotBufferSeconds';
+const DEFAULT_SCREENSHOT_BUFFER_SECONDS = 300;
+const SCREENSHOT_CAPTURE_INTERVAL_KEY = 'appScreenshotCaptureIntervalSec';
+const DEFAULT_SCREENSHOT_CAPTURE_INTERVAL_SEC = 2;
 // 캡처 압축 설정 — use-media-capture와 분리되어 있어 동일 키를 다시 읽음
 const IMAGE_COMPRESSION_QUALITY_KEY = 'appImageCompressionQuality';
 const IMAGE_MAX_WIDTH_KEY = 'appImageMaxWidth';
+
+function readBufferSeconds(): number {
+  const v = localStorage.getItem(SCREENSHOT_BUFFER_SECONDS_KEY);
+  if (!v) return DEFAULT_SCREENSHOT_BUFFER_SECONDS;
+  const n = parseFloat(v);
+  return Number.isFinite(n) && n >= 10 ? n : DEFAULT_SCREENSHOT_BUFFER_SECONDS;
+}
+
+function readCaptureIntervalMs(): number {
+  const v = localStorage.getItem(SCREENSHOT_CAPTURE_INTERVAL_KEY);
+  if (!v) return DEFAULT_SCREENSHOT_CAPTURE_INTERVAL_SEC * 1000;
+  const n = parseFloat(v);
+  return Number.isFinite(n) && n >= 0.5
+    ? n * 1000
+    : DEFAULT_SCREENSHOT_CAPTURE_INTERVAL_SEC * 1000;
+}
 
 // ImageCapture 타입 (use-media-capture.tsx와 동일)
 declare class ImageCapture {
@@ -95,40 +118,49 @@ export function ScreenCaptureProvider({ children }: { children: ReactNode }) {
   // 캡처 루프 시작/정지
   const startCaptureLoop = useCallback(() => {
     if (captureTimerRef.current !== null) return;
+    // setInterval 대신 setTimeout 체인 — 매 회차마다 최신 간격 설정을 다시 읽는다.
     const tick = async () => {
-      if (captureInFlightRef.current) return;
-      captureInFlightRef.current = true;
-      try {
-        const shot = await grabOne();
-        if (shot) {
-          bufferRef.current.push(shot);
-          const cutoff = Date.now() - SCREENSHOT_BUFFER_SECONDS * 1000;
-          while (bufferRef.current.length > 0 && bufferRef.current[0].capturedAt < cutoff) {
-            bufferRef.current.shift();
+      captureTimerRef.current = null;
+      if (!captureInFlightRef.current) {
+        captureInFlightRef.current = true;
+        try {
+          const shot = await grabOne();
+          if (shot) {
+            bufferRef.current.push(shot);
+            const cutoff = Date.now() - readBufferSeconds() * 1000;
+            while (bufferRef.current.length > 0 && bufferRef.current[0].capturedAt < cutoff) {
+              bufferRef.current.shift();
+            }
           }
+        } finally {
+          captureInFlightRef.current = false;
         }
-      } finally {
-        captureInFlightRef.current = false;
       }
+      // 스트림이 끊겼으면 루프 종료
+      if (!streamForCaptureRef.current) return;
+      captureTimerRef.current = window.setTimeout(tick, readCaptureIntervalMs());
     };
-    // 즉시 1장 + 매초 반복
+    // 즉시 1장 + 이후 설정 간격마다 반복
     void tick();
-    captureTimerRef.current = window.setInterval(tick, SCREENSHOT_CAPTURE_INTERVAL_MS);
   }, [grabOne]);
 
   const stopCaptureLoop = useCallback(() => {
     if (captureTimerRef.current !== null) {
-      window.clearInterval(captureTimerRef.current);
+      window.clearTimeout(captureTimerRef.current);
       captureTimerRef.current = null;
     }
     bufferRef.current = [];
     streamForCaptureRef.current = null;
   }, []);
 
-  const getPastScreenshots = useCallback((secondsAgoList: number[]): BufferedScreenshot[] => {
+  const getPastScreenshots = useCallback((
+    secondsAgoList: number[],
+    toleranceMs?: number,
+  ): BufferedScreenshot[] => {
     if (bufferRef.current.length === 0 || !secondsAgoList || secondsAgoList.length === 0) {
       return [];
     }
+    const tolerance = toleranceMs && toleranceMs > 0 ? toleranceMs : 30_000;
     const now = Date.now();
     const out: BufferedScreenshot[] = [];
     const seenTimestamps = new Set<number>();
@@ -144,8 +176,8 @@ export function ScreenCaptureProvider({ children }: { children: ReactNode }) {
           best = s;
         }
       }
-      // 너무 멀면(예: 30초 이상 차이) 의미 없으므로 스킵
-      if (best && bestDiff < 30_000 && !seenTimestamps.has(best.capturedAt)) {
+      // 요청 시점에서 tolerance 이상 벗어나면 의미 없으므로 스킵
+      if (best && bestDiff < tolerance && !seenTimestamps.has(best.capturedAt)) {
         out.push(best);
         seenTimestamps.add(best.capturedAt);
       }

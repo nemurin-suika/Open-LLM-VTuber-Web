@@ -132,15 +132,18 @@ export function useMediaCapture() {
         for (let i = count; i >= 1; i -= 1) {
           secondsAgoList.push(i * interval); // 오래된 것이 먼저
         }
-        const past = getPastScreenshots(secondsAgoList);
-        // past는 호출한 secondsAgoList 순서대로 반환됨 (오래된 → 최근)
-        past.forEach((p, idx) => {
-          const secAgo = secondsAgoList[idx];
+        // 허용 오차는 요청 간격에 비례 (간격을 넓게 잡아도 항목이 통째로 걸러지지 않도록)
+        const toleranceMs = Math.max(30_000, interval * 1000 * 0.75);
+        const past = getPastScreenshots(secondsAgoList, toleranceMs);
+        // past는 오래된 → 최근 순. 매칭 실패분이 빠질 수 있으므로
+        // ago는 요청값이 아니라 실제 캡처 시각으로 계산한다.
+        const nowMs = Date.now();
+        past.forEach((p) => {
           images.push({
             source: 'screen',
             data: p.data,
             mime_type: p.mime_type,
-            ago_seconds: secAgo,
+            ago_seconds: Math.max(1, Math.round((nowMs - p.capturedAt) / 1000)),
           });
         });
       }
