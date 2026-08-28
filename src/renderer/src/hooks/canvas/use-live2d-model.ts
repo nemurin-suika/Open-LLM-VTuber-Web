@@ -238,7 +238,7 @@ export const useLive2DModel = ({
       matrix: { m12: modelNdcX.toFixed(4), m13: modelNdcY.toFixed(4), m0: matrix[0].toFixed(4), m5: matrix[5].toFixed(4) },
       canvas: { w: canvas.width, h: canvas.height, cssW: rect.width, cssH: rect.height },
       window: { screenX: window.screenX, screenY: window.screenY, screenW: window.screen.width, screenH: window.screen.height, innerW: window.innerWidth, innerH: window.innerHeight },
-      computed: { canvasPixelX: canvasPixelX.toFixed(1), canvasPixelY: canvasPixelY.toFixed(1), viewportX: viewportX.toFixed(1), viewportY: viewportY.toFixed(1) },
+      computed: { viewportX: viewportX.toFixed(1), viewportY: viewportY.toFixed(1), projXScale: projXScale.toFixed(4) },
       result: { normX: normX.toFixed(3), normY: normY.toFixed(3), kScale },
     });
   }, [modelInfo?.kScale]);

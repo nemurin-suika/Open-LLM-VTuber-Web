@@ -43,9 +43,17 @@ export function InputSubtitle() {
     handleMouseDown,
     handleMouseEnter,
     handleMouseLeave,
+    resetPosition,
   } = useDraggable({
     componentId: 'input-subtitle',
   });
+
+  // Recentre both the model and this box, so a box dragged out of sight can
+  // always be recovered from the UI.
+  const handleResetLayout = useCallback(() => {
+    resetModelToCenter();
+    resetPosition();
+  }, [resetPosition]);
 
   const [isVisible, setIsVisible] = useState(true);
 
@@ -144,9 +152,9 @@ export function InputSubtitle() {
               </IconButton>
               {isPet && (
                 <IconButton
-                  aria-label="Reset model to center"
-                  onClick={resetModelToCenter}
-                  title="Reset model position and scale to center"
+                  aria-label="Reset model and subtitle box to center"
+                  onClick={handleResetLayout}
+                  title="Reset model position/scale and subtitle box position"
                   {...inputSubtitleStyles.iconButton}
                 >
                   <LuCrosshair size={16} />
