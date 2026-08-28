@@ -4,6 +4,19 @@ import { FiVolume2, FiVolumeX, FiRefreshCw } from 'react-icons/fi';
 import { Tooltip } from '@/components/ui/tooltip';
 import { sidebarStyles } from './sidebar-styles';
 import { useSystemAudioContext } from '@/context/system-audio-context';
+import {
+  SYSTEM_AUDIO_BUFFER_SECONDS_KEY,
+  DEFAULT_SYSTEM_AUDIO_BUFFER_SECONDS,
+  SYSTEM_AUDIO_SEND_SECONDS_KEY,
+  DEFAULT_SYSTEM_AUDIO_SEND_SECONDS,
+} from '@/hooks/sidebar/setting/use-general-settings';
+
+function readSeconds(key: string, fallback: number): number {
+  const v = localStorage.getItem(key);
+  if (!v) return fallback;
+  const n = parseFloat(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 function SystemAudioPanel(): JSX.Element {
   const {
@@ -11,6 +24,15 @@ function SystemAudioPanel(): JSX.Element {
     isMac, inputDevices, selectedDeviceId, setSelectedDeviceId, refreshDevices,
     startCapture, stopCapture,
   } = useSystemAudioContext();
+
+  const bufferSec = readSeconds(
+    SYSTEM_AUDIO_BUFFER_SECONDS_KEY,
+    DEFAULT_SYSTEM_AUDIO_BUFFER_SECONDS,
+  );
+  const sendSec = Math.min(
+    readSeconds(SYSTEM_AUDIO_SEND_SECONDS_KEY, DEFAULT_SYSTEM_AUDIO_SEND_SECONDS),
+    bufferSec,
+  );
 
   const toggle = () => {
     if (isCapturing) stopCapture();
@@ -29,7 +51,7 @@ function SystemAudioPanel(): JSX.Element {
               bg="green.400"
               animation="pulse 2s infinite"
             />
-            <Text fontSize="sm">시스템 오디오 녹음 중 (최근 60초)</Text>
+            <Text fontSize="sm">{`시스템 오디오 녹음 중 (최근 ${bufferSec}초)`}</Text>
           </Box>
         )}
       </Box>
@@ -82,7 +104,7 @@ function SystemAudioPanel(): JSX.Element {
         content={
           isCapturing
             ? '시스템 오디오 녹음 정지'
-            : '시스템 오디오 녹음 시작 (메시지 전송 시 최근 10초 분석)'
+            : `시스템 오디오 녹음 시작 (메시지 전송 시 최근 ${sendSec}초 분석)`
         }
       >
         <Box

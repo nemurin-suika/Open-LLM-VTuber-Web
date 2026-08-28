@@ -228,17 +228,31 @@ function General({ onSave, onCancel }: GeneralProps): JSX.Element {
       />
 
       <InputField
+        label="시스템 오디오 버퍼 길이(초)"
+        value={settings.systemAudioBufferSeconds.toString()}
+        onChange={(value) => {
+          const n = parseFloat(value as string);
+          if (!Number.isNaN(n) && n >= 10 && n <= 600) {
+            handleSettingChange("systemAudioBufferSeconds", n);
+          } else if (value === "") {
+            handleSettingChange("systemAudioBufferSeconds", settings.systemAudioBufferSeconds);
+          }
+        }}
+        help="소리를 몇 초치까지 보관할지 (10~600). 전송 길이보다 커야 함"
+      />
+
+      <InputField
         label="시스템 오디오 전송 길이(초)"
         value={settings.systemAudioSendSeconds.toString()}
         onChange={(value) => {
           const n = parseFloat(value as string);
-          if (!Number.isNaN(n) && n >= 1 && n <= 60) {
+          if (!Number.isNaN(n) && n >= 1 && n <= 600) {
             handleSettingChange("systemAudioSendSeconds", n);
           } else if (value === "") {
             handleSettingChange("systemAudioSendSeconds", settings.systemAudioSendSeconds);
           }
         }}
-        help="롤링 버퍼(60초)에서 끝 N초를 LLM에 전송 (1~60초)"
+        help="롤링 버퍼에서 끝 N초를 LLM에 전송 (1~600초). 길수록 분석 시간이 비례해 늘어남"
       />
     </Stack>
   );

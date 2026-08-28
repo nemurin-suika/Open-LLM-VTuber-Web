@@ -26,19 +26,32 @@ interface SystemAudioContextType {
 
 const SystemAudioContext = createContext<SystemAudioContextType | undefined>(undefined);
 
-// 롤링 버퍼 설정: 1분 보관 → LLM에는 설정값(기본 10초, 최대 60초)만 잘라 전송
-const BUFFER_SECONDS = 60;
+// 롤링 버퍼 설정: 버퍼 길이와 전송 길이 모두 localStorage로 조정 가능 (재시작 없이 반영).
+// 기본 300초 보관 → LLM에는 설정값(기본 10초)만 잘라 전송.
+const SYSTEM_AUDIO_BUFFER_SECONDS_KEY = 'appSystemAudioBufferSeconds';
+const DEFAULT_BUFFER_SECONDS = 300;
+const MAX_BUFFER_SECONDS = 600;
 const DEFAULT_SEND_SECONDS = 10;
-const MAX_SEND_SECONDS = 60;
+const MAX_SEND_SECONDS = 600;
 const SYSTEM_AUDIO_SEND_SECONDS_KEY = 'appSystemAudioSendSeconds';
 const TIMESLICE_MS = 1000;
 
+function readBufferSeconds(): number {
+  const v = localStorage.getItem(SYSTEM_AUDIO_BUFFER_SECONDS_KEY);
+  if (!v) return DEFAULT_BUFFER_SECONDS;
+  const n = parseFloat(v);
+  if (!Number.isFinite(n) || n < 10) return DEFAULT_BUFFER_SECONDS;
+  return Math.min(n, MAX_BUFFER_SECONDS);
+}
+
 function readSendSeconds(): number {
   const v = localStorage.getItem(SYSTEM_AUDIO_SEND_SECONDS_KEY);
-  if (!v) return DEFAULT_SEND_SECONDS;
+  const bufferSec = readBufferSeconds();
+  if (!v) return Math.min(DEFAULT_SEND_SECONDS, bufferSec);
   const n = parseFloat(v);
-  if (!Number.isFinite(n) || n < 1) return DEFAULT_SEND_SECONDS;
-  return Math.min(n, MAX_SEND_SECONDS);
+  if (!Number.isFinite(n) || n < 1) return Math.min(DEFAULT_SEND_SECONDS, bufferSec);
+  // 버퍼에 없는 구간은 보낼 수 없으므로 버퍼 길이로도 한 번 더 자름
+  return Math.min(n, MAX_SEND_SECONDS, bufferSec);
 }
 
 // MediaRecorder가 실제로 지원하는 mime type 선택
@@ -193,7 +206,6 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
       recorderRef.current = recorder;
       chunksRef.current = [];
 
-      const maxChunks = Math.ceil((BUFFER_SECONDS * 1000) / TIMESLICE_MS);
       headerChunkRef.current = null;
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
@@ -202,6 +214,8 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
             headerChunkRef.current = e.data;
           }
           chunksRef.current.push(e.data);
+          // 버퍼 길이 설정은 매 chunk마다 다시 읽는다 (사이드바에서 바꾸면 즉시 반영)
+          const maxChunks = Math.ceil((readBufferSeconds() * 1000) / TIMESLICE_MS);
           if (chunksRef.current.length > maxChunks) {
             chunksRef.current = chunksRef.current.slice(-maxChunks);
           }
@@ -215,7 +229,7 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
       setIsCapturing(true);
       setHasAudioTrack(true);
       setError('');
-      console.log(`[SystemAudio] 캡처 시작 (mime=${mimeType}, buffer=${BUFFER_SECONDS}s)`);
+      console.log(`[SystemAudio] 캡처 시작 (mime=${mimeType}, buffer=${readBufferSeconds()}s)`);
     } catch (err) {
       const msg = `시스템 오디오 캡처 실패: ${err}`;
       setError(msg);

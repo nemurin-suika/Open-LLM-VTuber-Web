@@ -26,10 +26,14 @@ export const SCREENSHOT_BUFFER_SECONDS_KEY = 'appScreenshotBufferSeconds';
 export const DEFAULT_SCREENSHOT_BUFFER_SECONDS = 300;
 export const SCREENSHOT_CAPTURE_INTERVAL_KEY = 'appScreenshotCaptureIntervalSec';
 export const DEFAULT_SCREENSHOT_CAPTURE_INTERVAL = 2;
-// LLM 전송 시 시스템 오디오 길이 (롤링 버퍼는 60s 고정, 그 안에서 잘라 보냄)
+// LLM 전송 시 시스템 오디오 길이 (롤링 버퍼 안에서 끝 N초를 잘라 보냄)
 export const SYSTEM_AUDIO_SEND_SECONDS_KEY = 'appSystemAudioSendSeconds';
 export const DEFAULT_SYSTEM_AUDIO_SEND_SECONDS = 10;
-export const MAX_SYSTEM_AUDIO_SEND_SECONDS = 60;
+export const MAX_SYSTEM_AUDIO_SEND_SECONDS = 600;
+// 시스템 오디오 롤링 버퍼 길이 (system-audio-context가 같은 키를 읽음)
+export const SYSTEM_AUDIO_BUFFER_SECONDS_KEY = 'appSystemAudioBufferSeconds';
+export const DEFAULT_SYSTEM_AUDIO_BUFFER_SECONDS = 300;
+export const MAX_SYSTEM_AUDIO_BUFFER_SECONDS = 600;
 
 interface GeneralSettings {
   language: string[]
@@ -48,6 +52,7 @@ interface GeneralSettings {
   screenshotBufferSeconds: number;
   screenshotCaptureIntervalSec: number;
   systemAudioSendSeconds: number;
+  systemAudioBufferSeconds: number;
 }
 
 interface UseGeneralSettingsProps {
@@ -129,6 +134,15 @@ const loadInitialSystemAudioSendSeconds = (): number => {
   return DEFAULT_SYSTEM_AUDIO_SEND_SECONDS;
 };
 
+const loadInitialSystemAudioBufferSeconds = (): number => {
+  const v = localStorage.getItem(SYSTEM_AUDIO_BUFFER_SECONDS_KEY);
+  if (v) {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n) && n >= 10 && n <= MAX_SYSTEM_AUDIO_BUFFER_SECONDS) return n;
+  }
+  return DEFAULT_SYSTEM_AUDIO_BUFFER_SECONDS;
+};
+
 export const useGeneralSettings = ({
   bgUrlContext,
   confName,
@@ -178,6 +192,7 @@ export const useGeneralSettings = ({
     screenshotBufferSeconds: loadInitialScreenshotBufferSeconds(),
     screenshotCaptureIntervalSec: loadInitialScreenshotCaptureInterval(),
     systemAudioSendSeconds: loadInitialSystemAudioSendSeconds(),
+    systemAudioBufferSeconds: loadInitialSystemAudioBufferSeconds(),
   };
 
   const [settings, setSettings] = useState<GeneralSettings>(initialSettings);
@@ -210,6 +225,10 @@ export const useGeneralSettings = ({
       settings.screenshotCaptureIntervalSec.toString(),
     );
     localStorage.setItem(SYSTEM_AUDIO_SEND_SECONDS_KEY, settings.systemAudioSendSeconds.toString());
+    localStorage.setItem(
+      SYSTEM_AUDIO_BUFFER_SECONDS_KEY,
+      settings.systemAudioBufferSeconds.toString(),
+    );
   }, [settings, bgUrlContext, baseUrl, onWsUrlChange, onBaseUrlChange, setShowSubtitle]);
 
   useEffect(() => {
