@@ -15,10 +15,11 @@ interface SystemAudioContextType {
   hasAudioTrack: boolean;
   error: string;
   isMac: boolean;                                  // macOS면 deviceId 선택 UI 필요
-  inputDevices: MediaDeviceInfo[];                 // macOS에서 사용 가능한 audio input 목록
-  selectedDeviceId: string;                        // 사용자가 선택한 deviceId (macOS만)
+  canSelectDevice: boolean;                        // 입력 장치 선택 UI를 보여줄지 (macOS 또는 브라우저 접속)
+  inputDevices: MediaDeviceInfo[];                 // 사용 가능한 audio input 목록
+  selectedDeviceId: string;                        // 사용자가 선택한 deviceId (비우면 브라우저는 화면 공유 사용)
   setSelectedDeviceId: (id: string) => void;
-  refreshDevices: () => Promise<void>;
+  refreshDevices: (requestPermission?: boolean) => Promise<void>;
   startCapture: () => Promise<void>;
   stopCapture: () => void;
   getLatestAudio: () => Promise<SystemAudioData | null>;
@@ -98,6 +99,8 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
   const [hasAudioTrack, setHasAudioTrack] = useState(false);
   const [error, setError] = useState('');
   const [isMac] = useState<boolean>(() => detectIsMac());
+  // 브라우저로 접속한 경우에도 BlackHole 같은 입력 장치를 직접 고를 수 있게 한다
+  const canSelectDevice = isMac || typeof window === 'undefined' || window.electron === undefined;
   const [inputDevices, setInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, _setSelectedDeviceId] = useState<string>(
     () => localStorage.getItem(MAC_DEVICE_ID_STORAGE_KEY) || '',
@@ -114,13 +117,21 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
   const headerChunkRef = useRef<Blob | null>(null);
   const mimeRef = useRef<string>('audio/webm');
 
-  const refreshDevices = async () => {
+  // requestPermission=false면 권한 요청 없이 목록만 읽는다.
+  // 브라우저 접속에서 페이지 열자마자 마이크 권한 창이 뜨는 걸 막기 위한 구분이다.
+  const refreshDevices = async (requestPermission = true) => {
     try {
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        console.warn('[SystemAudio] mediaDevices 사용 불가 (보안 컨텍스트 아님)');
+        return;
+      }
       // enumerateDevices가 label을 채워주려면 한 번 권한 받아야 함
-      try {
-        const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
-        tmp.getTracks().forEach((tr) => tr.stop());
-      } catch (e) { /* 권한 거부해도 일부 정보는 받음 */ }
+      if (requestPermission) {
+        try {
+          const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+          tmp.getTracks().forEach((tr) => tr.stop());
+        } catch (e) { /* 권한 거부해도 일부 정보는 받음 */ }
+      }
       const all = await navigator.mediaDevices.enumerateDevices();
       const audios = all.filter((d) => d.kind === 'audioinput');
       setInputDevices(audios);
@@ -135,15 +146,13 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
     try {
       let mediaStream: MediaStream;
 
-      if (isMac) {
+      // 입력 장치를 직접 지정하는 경로를 쓸 수 있는 상황인지 판단한다.
+      // macOS(가상 오디오 장치 필요)와 브라우저 접속에서 모두 유효하다.
+      const useInputDevice = Boolean(selectedDeviceId) && (isMac || !window.electron);
+
+      if (useInputDevice) {
         // macOS: chromeMediaSource desktop은 오디오 트랙을 빈 채로 반환하므로,
         // BlackHole 등 가상 오디오 장치를 deviceId로 직접 지정해서 캡처한다.
-        if (!selectedDeviceId) {
-          const msg = 'macOS에서는 오디오 입력 장치를 선택해야 합니다. BlackHole 같은 가상 오디오 장치를 입력에서 골라주세요.';
-          setError(msg);
-          toaster.create({ title: msg, type: 'warning', duration: 5000 });
-          return;
-        }
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             deviceId: { exact: selectedDeviceId },
@@ -153,6 +162,12 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
           },
           video: false,
         });
+      } else if (window.electron && isMac) {
+        // macOS 데스크톱 앱에서는 장치 선택이 필수
+        const msg = 'macOS에서는 오디오 입력 장치를 선택해야 합니다. BlackHole 같은 가상 오디오 장치를 입력에서 골라주세요.';
+        setError(msg);
+        toaster.create({ title: msg, type: 'warning', duration: 5000 });
+        return;
       } else if (window.electron) {
         // Windows/Linux + Electron: chromeMediaSource desktop으로 시스템 오디오 직접 캡처
         const sourceId = await window.electron.ipcRenderer.invoke('get-screen-capture');
@@ -177,7 +192,13 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
         });
         mediaStream.getVideoTracks().forEach((track) => track.stop());
       } else {
-        // 일반 브라우저 (웹 모드)
+        // 일반 브라우저 (웹 모드): 장치를 고르지 않았으면 화면/탭 공유 권한 창으로 오디오를 받는다
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          const msg = '이 브라우저에서는 화면 공유로 오디오를 받을 수 없습니다. https로 접속했는지 확인해주세요.';
+          setError(msg);
+          toaster.create({ title: msg, type: 'error', duration: 5000 });
+          return;
+        }
         mediaStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
           audio: true,
@@ -189,9 +210,9 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
       if (audioTracks.length === 0) {
         mediaStream.getTracks().forEach((t2) => t2.stop());
         setHasAudioTrack(false);
-        const msg = isMac
+        const msg = useInputDevice
           ? `오디오 트랙이 비어있습니다. 선택한 입력 장치(${selectedDeviceId})를 확인하세요.`
-          : '시스템 오디오 트랙이 없습니다.';
+          : '시스템 오디오 트랙이 없습니다. 공유 창에서 탭을 고르고 오디오 공유를 켜주세요.';
         setError(msg);
         toaster.create({ title: msg, type: 'warning', duration: 4000 });
         return;
@@ -224,6 +245,19 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
       recorder.onerror = (e) => {
         console.error('[SystemAudio] MediaRecorder error:', e);
       };
+
+      // 브라우저 공유 바에서 공유를 멈추면 트랙이 끝나므로 녹음 상태도 같이 내린다
+      audioTracks.forEach((track) => {
+        track.addEventListener('ended', () => {
+          try {
+            if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+              recorderRef.current.stop();
+            }
+          } catch (e) { /* 이미 멈춘 경우 무시 */ }
+          setIsCapturing(false);
+          setHasAudioTrack(false);
+        });
+      });
 
       recorder.start(TIMESLICE_MS);
       setIsCapturing(true);
@@ -285,13 +319,13 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => stopCapture(), []);
 
-  // mac에서는 마운트 시 한 번 장치 목록을 자동 로드해서 UI가 비어있지 않게
+  // 장치 선택이 가능한 환경에서는 마운트 시 한 번 목록을 자동 로드해서 UI가 비어있지 않게
   useEffect(() => {
-    if (isMac) {
-      refreshDevices();
+    if (canSelectDevice) {
+      refreshDevices(Boolean(window.electron));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMac]);
+  }, [canSelectDevice]);
 
   return (
     <SystemAudioContext.Provider
@@ -301,6 +335,7 @@ export function SystemAudioProvider({ children }: { children: ReactNode }) {
         hasAudioTrack,
         error,
         isMac,
+        canSelectDevice,
         inputDevices,
         selectedDeviceId,
         setSelectedDeviceId,

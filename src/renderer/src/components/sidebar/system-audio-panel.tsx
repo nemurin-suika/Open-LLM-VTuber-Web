@@ -21,9 +21,12 @@ function readSeconds(key: string, fallback: number): number {
 function SystemAudioPanel(): JSX.Element {
   const {
     isCapturing, hasAudioTrack, error,
-    isMac, inputDevices, selectedDeviceId, setSelectedDeviceId, refreshDevices,
+    canSelectDevice, inputDevices, selectedDeviceId, setSelectedDeviceId, refreshDevices,
     startCapture, stopCapture,
   } = useSystemAudioContext();
+
+  // 브라우저로 접속한 경우에는 장치를 고르지 않으면 화면 공유 권한 창으로 오디오를 받는다
+  const isBrowser = window.electron === undefined;
 
   const bufferSec = readSeconds(
     SYSTEM_AUDIO_BUFFER_SECONDS_KEY,
@@ -56,7 +59,7 @@ function SystemAudioPanel(): JSX.Element {
         )}
       </Box>
 
-      {isMac && (
+      {canSelectDevice && (
         <Box mb={3}>
           <HStack mb={2} justifyContent="space-between">
             <Text fontSize="xs" color="whiteAlpha.700">
@@ -65,7 +68,7 @@ function SystemAudioPanel(): JSX.Element {
             <Button
               size="xs"
               variant="ghost"
-              onClick={refreshDevices}
+              onClick={() => refreshDevices(true)}
               disabled={isCapturing}
             >
               <FiRefreshCw />
@@ -85,7 +88,9 @@ function SystemAudioPanel(): JSX.Element {
               border: '1px solid rgba(255,255,255,0.15)',
             }}
           >
-            <option value="" style={{ background: '#2D3748' }}>— 장치 선택 —</option>
+            <option value="" style={{ background: '#2D3748' }}>
+              {isBrowser ? '— 화면 공유로 받기 —' : '— 장치 선택 —'}
+            </option>
             {inputDevices.map((d) => (
               <option key={d.deviceId} value={d.deviceId} style={{ background: '#2D3748' }}>
                 {d.label || `장치 ${d.deviceId.slice(0, 8)}`}
@@ -93,8 +98,9 @@ function SystemAudioPanel(): JSX.Element {
             ))}
           </select>
           <Text fontSize="xs" color="whiteAlpha.500" mt={1}>
-            시스템 오디오를 캡처하려면 BlackHole(또는 가상 오디오 장치)을 입력으로 선택.
-            macOS 시스템 출력을 Multi-Output Device(스피커 + BlackHole)로 설정해야 소리가 들어옵니다.
+            {isBrowser
+              ? '장치를 고르지 않으면 켤 때 화면 공유 창이 떠서, 공유할 탭이나 화면을 고르고 오디오 공유를 켜면 됩니다. 같은 컴퓨터에서 쓸 때는 BlackHole 같은 가상 오디오 장치를 골라도 됩니다.'
+              : '시스템 오디오를 캡처하려면 BlackHole(또는 가상 오디오 장치)을 입력으로 선택. macOS 시스템 출력을 Multi-Output Device(스피커 + BlackHole)로 설정해야 소리가 들어옵니다.'}
           </Text>
         </Box>
       )}

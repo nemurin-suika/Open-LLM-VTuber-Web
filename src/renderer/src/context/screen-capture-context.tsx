@@ -86,34 +86,97 @@ export function ScreenCaptureProvider({ children }: { children: ReactNode }) {
   const captureInFlightRef = useRef<boolean>(false);
   const streamForCaptureRef = useRef<MediaStream | null>(null);
 
+  // ImageCapture를 지원하지 않는 브라우저용 폴백 비디오 엘리먼트
+  const fallbackVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // 프레임 원본을 캔버스에 그려 jpeg dataURL로 변환
+  const toDataUrl = (
+    source: CanvasImageSource,
+    srcWidth: number,
+    srcHeight: number,
+  ): string | null => {
+    if (!srcWidth || !srcHeight) return null;
+    let width = srcWidth;
+    let height = srcHeight;
+    const maxW = readMaxWidth();
+    if (maxW > 0 && width > maxW) {
+      height = (maxW / width) * height;
+      width = maxW;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(source, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', readQuality());
+  };
+
+  // 폴백 경로: 스트림을 숨은 video에 붙여 현재 프레임을 캔버스로 복사한다.
+  const grabViaVideo = useCallback(async (s: MediaStream): Promise<string | null> => {
+    let video = fallbackVideoRef.current;
+    if (!video) {
+      video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute('aria-hidden', 'true');
+      video.style.position = 'fixed';
+      video.style.left = '-10000px';
+      video.style.width = '1px';
+      video.style.height = '1px';
+      video.style.pointerEvents = 'none';
+      document.body.appendChild(video);
+      fallbackVideoRef.current = video;
+    }
+    if (video.srcObject !== s) {
+      video.srcObject = s;
+      try {
+        await video.play();
+      } catch (e) { /* 자동 재생이 막혀도 프레임은 들어온다 */ }
+    }
+    if (!video.videoWidth) {
+      await new Promise<void>((resolve) => {
+        const done = () => resolve();
+        video?.addEventListener('loadedmetadata', done, { once: true });
+        window.setTimeout(done, 1000);
+      });
+    }
+    if (!video.videoWidth) return null;
+    return toDataUrl(video, video.videoWidth, video.videoHeight);
+  }, []);
+
   // 한 프레임 캡처 → BufferedScreenshot. 실패 시 null.
   const grabOne = useCallback(async (): Promise<BufferedScreenshot | null> => {
     const s = streamForCaptureRef.current;
     if (!s) return null;
     const track = s.getVideoTracks()[0];
     if (!track || track.readyState !== 'live') return null;
-    try {
-      const ic = new ImageCapture(track);
-      const bitmap = await ic.grabFrame();
-      const canvas = document.createElement('canvas');
-      let { width, height } = bitmap;
-      const maxW = readMaxWidth();
-      if (maxW > 0 && width > maxW) {
-        height = (maxW / width) * height;
-        width = maxW;
+
+    // 1순위: ImageCapture (크로미움 계열에서만 지원)
+    const ImageCaptureCtor = (window as unknown as {
+      ImageCapture?: new (t: MediaStreamTrack) => ImageCapture;
+    }).ImageCapture;
+    if (ImageCaptureCtor) {
+      try {
+        const ic = new ImageCaptureCtor(track);
+        const bitmap = await ic.grabFrame();
+        const data = toDataUrl(bitmap, bitmap.width, bitmap.height);
+        if (data) return { data, mime_type: 'image/jpeg', capturedAt: Date.now() };
+      } catch (e) {
+        console.warn('[ScreenCapture] ImageCapture 실패, video 폴백으로 전환:', e);
       }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-      ctx.drawImage(bitmap, 0, 0, width, height);
-      const data = canvas.toDataURL('image/jpeg', readQuality());
+    }
+
+    // 2순위: video 엘리먼트 폴백 (사파리·파이어폭스 등)
+    try {
+      const data = await grabViaVideo(s);
+      if (!data) return null;
       return { data, mime_type: 'image/jpeg', capturedAt: Date.now() };
     } catch (e) {
       console.warn('[ScreenCapture] grabOne 실패:', e);
       return null;
     }
-  }, []);
+  }, [grabViaVideo]);
 
   // 캡처 루프 시작/정지
   const startCaptureLoop = useCallback(() => {
@@ -151,6 +214,13 @@ export function ScreenCaptureProvider({ children }: { children: ReactNode }) {
     }
     bufferRef.current = [];
     streamForCaptureRef.current = null;
+    const video = fallbackVideoRef.current;
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+      video.remove();
+      fallbackVideoRef.current = null;
+    }
   }, []);
 
   const getPastScreenshots = useCallback((
@@ -210,12 +280,29 @@ export function ScreenCaptureProvider({ children }: { children: ReactNode }) {
 
         mediaStream = await navigator.mediaDevices.getUserMedia(displayMediaOptions);
       } else {
+        // 브라우저 접속: 사용자가 공유할 화면이나 탭을 직접 고른다 (https 필요)
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          const msg = '이 브라우저에서는 화면 공유를 쓸 수 없습니다. https로 접속했는지 확인해주세요.';
+          setError(msg);
+          toaster.create({ title: msg, type: 'error', duration: 5000 });
+          return;
+        }
         const displayMediaOptions: DisplayMediaStreamOptions = {
           video: true,
           audio: false,
         };
         mediaStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
       }
+
+      // 브라우저 공유 바에서 공유 중지를 누르면 트랙이 끝나므로 상태를 같이 정리한다
+      mediaStream.getVideoTracks().forEach((track) => {
+        track.addEventListener('ended', () => {
+          stopCaptureLoop();
+          mediaStream.getTracks().forEach((t2) => t2.stop());
+          setStream(null);
+          setIsStreaming(false);
+        });
+      });
 
       setStream(mediaStream);
       setIsStreaming(true);
