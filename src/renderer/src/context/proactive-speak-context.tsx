@@ -26,13 +26,19 @@ interface ProactiveSpeakContextType {
   resumeIdleTimer: () => void
 }
 
+// 2026-10-24: 자발 발화 기본값을 off 로 변경(브라우저/Electron 공통).
+// 새 브라우저에서 접속하자마자 말을 걸던 동작을 막기 위함. 켜려면 사이드바에서 직접 on.
 const defaultSettings: ProactiveSpeakSettings = {
-  allowProactiveSpeak: true,
+  allowProactiveSpeak: false,
   idleSecondsToSpeak: 20,
   allowButtonTrigger: false,
   mode: 'broadcast',
   proactiveInstruction: '',
 };
+
+// 기본값 변경 이전에 localStorage 에 on 으로 저장돼 있던 설정을 1회만 off 로 내린다.
+// 이 플래그가 세워진 뒤 사용자가 직접 켠 값은 그대로 유지된다.
+const DEFAULT_OFF_MIGRATION_KEY = 'proactiveSpeakSettings.defaultOffApplied';
 
 export const ProactiveSpeakContext = createContext<ProactiveSpeakContextType | null>(null);
 
@@ -46,6 +52,21 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
     () => ({ ...defaultSettings, ...rawSettings }),
     [rawSettings],
   );
+
+  // 기본값 off 전환 1회 마이그레이션
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(DEFAULT_OFF_MIGRATION_KEY)) return;
+      window.localStorage.setItem(DEFAULT_OFF_MIGRATION_KEY, '1');
+      if (rawSettings?.allowProactiveSpeak) {
+        setSettings({ ...defaultSettings, ...rawSettings, allowProactiveSpeak: false });
+      }
+    } catch (error) {
+      console.error('proactive 기본값 off 마이그레이션 실패:', error);
+    }
+    // 최초 마운트 1회만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { aiState } = useAiState();
   const { sendTriggerSignal } = useTriggerSpeak();
