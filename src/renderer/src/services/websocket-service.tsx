@@ -126,6 +126,18 @@ class WebSocketService {
 
   private currentState: 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED' = 'CLOSED';
 
+  // ── 자동 재접속 ────────────────────────────────────────────────────────────
+  // 백엔드를 재기동하면 소켓이 닫히는데, 기존 구현은 상태만 CLOSED 로 바꾸고
+  // 끝이어서 사용자가 화면을 수동으로 새로고침해야 했다. launchd 전환 이후
+  // 백엔드 재기동이 일상이 되므로 지수 백오프로 스스로 다시 붙는다.
+  private lastUrl: string | null = null;
+
+  private manualClose = false;
+
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private reconnectAttempts = 0;
+
   static getInstance() {
     if (!WebSocketService.instance) {
       WebSocketService.instance = new WebSocketService();
@@ -154,6 +166,10 @@ class WebSocketService {
       this.disconnect();
     }
 
+    this.lastUrl = url;
+    this.manualClose = false;
+    this.clearReconnectTimer();
+
     try {
       this.ws = new WebSocket(url);
       this.currentState = 'CONNECTING';
@@ -162,6 +178,7 @@ class WebSocketService {
       this.ws.onopen = () => {
         this.currentState = 'OPEN';
         this.stateSubject.next('OPEN');
+        this.reconnectAttempts = 0;
         console.log(`[WS] Connected to ${url}`);
         this.initializeConnection();
       };
@@ -189,18 +206,43 @@ class WebSocketService {
         this.currentState = 'CLOSED';
         this.stateSubject.next('CLOSED');
         console.warn(`[WS] Connection closed. code=${event.code} reason="${event.reason}" wasClean=${event.wasClean}`);
+        this.scheduleReconnect();
       };
 
       this.ws.onerror = (event) => {
         this.currentState = 'CLOSED';
         this.stateSubject.next('CLOSED');
         console.error('[WS] Connection error:', event);
+        this.scheduleReconnect();
       };
     } catch (error) {
       console.error('Failed to connect to WebSocket:', error);
       this.currentState = 'CLOSED';
       this.stateSubject.next('CLOSED');
+      this.scheduleReconnect();
     }
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private scheduleReconnect() {
+    if (this.manualClose || !this.lastUrl) return;
+    if (this.reconnectTimer) return;
+
+    this.reconnectAttempts += 1;
+    const delay = Math.min(1000 * 2 ** (this.reconnectAttempts - 1), 10000);
+    console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.manualClose || !this.lastUrl) return;
+      this.connect(this.lastUrl);
+    }, delay);
   }
 
   sendMessage(message: object) {
@@ -225,6 +267,8 @@ class WebSocketService {
   }
 
   disconnect() {
+    this.manualClose = true;
+    this.clearReconnectTimer();
     this.ws?.close();
     this.ws = null;
   }
