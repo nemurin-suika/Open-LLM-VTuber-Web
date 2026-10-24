@@ -266,7 +266,11 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         const restored = (message.messages || []) as Message[];
         if (restored.length > 0) {
           const cleaned = restored.map((msg) => (
-            msg.content ? { ...msg, content: stripLLMTags(msg.content) } : msg
+            // 중간 진행 알림은 실시간 표시와 같은 원문을 그대로 보여준다
+            // (대괄호가 섞여 있어도 지워지지 않도록 태그 제거를 건너뛴다).
+            msg.content && msg.type !== 'progress_update'
+              ? { ...msg, content: stripLLMTags(msg.content) }
+              : msg
           ));
           if (message.append) {
             // 위로 스크롤해서 과거를 더 불러온 경우 — 앞쪽에 덧붙인다.
