@@ -68,7 +68,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   }, [aiState]);
 
   const {
-    setCurrentHistoryUid, setMessages, setHistoryList,
+    setCurrentHistoryUid, setMessages, setHistoryList, setHistoryCursor,
   } = useChatHistory();
 
   const handleControlMessage = useCallback((controlText: string) => {
@@ -238,8 +238,40 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           duration: 2000,
         });
         break;
+      case 'letta-history-data': {
+        // 재접속 대화 복원 (TODO19 1단계). 원본은 letta conversation.
+        const restored = (message.messages || []) as Message[];
+        if (restored.length > 0) {
+          const cleaned = restored.map((msg) => (
+            msg.content ? { ...msg, content: stripLLMTags(msg.content) } : msg
+          ));
+          if (message.append) {
+            // 위로 스크롤해서 과거를 더 불러온 경우 — 앞쪽에 덧붙인다.
+            setMessages((prev: Message[]) => {
+              const known = new Set(prev.map((m) => m.id));
+              return [...cleaned.filter((m) => !known.has(m.id)), ...prev];
+            });
+          } else {
+            setMessages(cleaned);
+          }
+        }
+        setHistoryCursor({
+          oldestId: message.oldest_id ?? null,
+          hasMore: Boolean(message.has_more),
+          loading: false,
+        });
+        break;
+      }
       case 'new-history-created':
         setAiState('idle');
+        // 접속할 때 자동으로 생기는 세션이면 화면을 건드리지 않는다.
+        // (지난 대화는 letta-history-data 로 복원되므로 비우면 안 된다)
+        if (message.initial) {
+          if (message.history_uid) {
+            setCurrentHistoryUid(message.history_uid);
+          }
+          break;
+        }
         setSubtitleText(t('notification.newConversation'));
         // No need to open mic here
         if (message.history_uid) {
@@ -388,7 +420,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, t]);
+  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

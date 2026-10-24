@@ -102,6 +102,13 @@ export interface MessageEvent {
   };
   // agent_status 이벤트 필드 — 채팅창 마지막 스피너 표시용
   detail?: string;
+  // letta-history-data (재접속 대화 복원, TODO19 1단계)
+  oldest_id?: string | null;
+  has_more?: boolean;
+  append?: boolean;
+  supported?: boolean;
+  // new-history-created: 접속 시 자동 생성인지 여부
+  initial?: boolean;
 }
 
 // Get translation function for error messages
@@ -155,8 +162,17 @@ class WebSocketService {
     this.sendMessage({
       type: 'fetch-history-list',
     });
+    // initial 플래그: 이 create-new-history 는 사용자가 "새 세션" 버튼을 누른 게 아니라
+    // 접속할 때 자동으로 나가는 것이다. 백엔드가 이 값을 그대로 돌려주면 프론트는
+    // 채팅창을 비우지 않고(= 지난 대화 유지) 아래 fetch-letta-history 결과로 채운다.
     this.sendMessage({
       type: 'create-new-history',
+      initial: true,
+    });
+    // 재접속 대화 복원 (TODO19 1단계): 진짜 대화 원본인 letta 에서 직접 읽어온다.
+    this.sendMessage({
+      type: 'fetch-letta-history',
+      limit: 50,
     });
   }
 

@@ -29,7 +29,10 @@ interface ChatHistoryState {
   appendOrUpdateToolCallMessage: (toolMessageData: Partial<Message>) => void; // Accept partial data
   appendProgressMessage: (text: string) => void;
   appendImageMessage: (imageBase64: string, mimeType: string, label?: string) => void;
-  setMessages: (messages: Message[]) => void; // Use the unified Message type
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>; // Use the unified Message type
+  // 재접속 복원(TODO19 1단계)에서 "더 과거" 를 불러오기 위한 커서
+  historyCursor: HistoryCursor;
+  setHistoryCursor: React.Dispatch<React.SetStateAction<HistoryCursor>>;
   setHistoryList: (
     value: HistoryInfo[] | ((prev: HistoryInfo[]) => HistoryInfo[])
   ) => void;
@@ -42,6 +45,18 @@ interface ChatHistoryState {
   setForceNewMessage: (value: boolean) => void;
   agentStatus: AgentActivityStatus;
   setAgentStatus: (status: AgentActivityStatus) => void;
+}
+
+/**
+ * 지난 대화 복원 커서 (letta conversation 기준)
+ *  oldestId : 지금 화면에 올라와 있는 메시지 중 가장 오래된 letta message id
+ *  hasMore  : 그보다 더 과거가 남아 있는지
+ *  loading  : 추가 로드 요청이 진행 중인지 (중복 요청 방지)
+ */
+export interface HistoryCursor {
+  oldestId: string | null;
+  hasMore: boolean;
+  loading: boolean;
 }
 
 /**
@@ -76,6 +91,11 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
   const [fullResponse, setFullResponse] = useState(DEFAULT_HISTORY.fullResponse);
   const [forceNewMessage, setForceNewMessage] = useState<boolean>(false);
   const [agentStatus, setAgentStatus] = useState<AgentActivityStatus>({ status: 'idle' });
+  const [historyCursor, setHistoryCursor] = useState<HistoryCursor>({
+    oldestId: null,
+    hasMore: false,
+    loading: false,
+  });
 
   /**
    * Append a human message to the chat history
@@ -272,8 +292,11 @@ export function ChatHistoryProvider({ children }: { children: React.ReactNode })
       setForceNewMessage,
       agentStatus,
       setAgentStatus,
+      historyCursor,
+      setHistoryCursor,
     }),
     [
+      historyCursor,
       messages,
       historyList,
       currentHistoryUid,
