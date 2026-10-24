@@ -134,6 +134,8 @@ export interface MessageEvent {
   replay_only?: boolean;
   /** letta-history-data 가 어느 세션의 복원인지 */
   conversation_id?: string;
+  /** 도구 승인 요청이 올라온 세션 이름 (tool-approval-request) */
+  session_name?: string;
 }
 
 // Get translation function for error messages

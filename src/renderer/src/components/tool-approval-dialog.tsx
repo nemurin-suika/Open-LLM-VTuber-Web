@@ -52,6 +52,9 @@ interface ToolApprovalRequest {
   rule_options: RuleOption[];
   ttl_days: number;
   intent?: string;
+  /** 다중 세션: 이 요청이 올라온 세션(방) */
+  session_id?: string;
+  session_name?: string;
 }
 
 /** 도구별 미리보기 렌더러 — Edit/Write는 GitHub diff 스타일, 나머지는 기존 유지. */
@@ -248,6 +251,8 @@ function ToolApprovalDialog(): JSX.Element {
           rule_options: Array.isArray(message.rule_options) ? message.rule_options : [],
           ttl_days: message.ttl_days ?? 3,
           intent: message.intent || '',
+          session_id: message.session_id || '',
+          session_name: message.session_name || '',
         };
         // 새 승인 요청 도착 → 경고음 (다이얼로그만으론 놓치기 쉬움).
         playApprovalBeep();
@@ -280,6 +285,13 @@ function ToolApprovalDialog(): JSX.Element {
 
   const pending = queue.length - 1;
 
+  // 다중 세션: 어느 방에서 올라온 요청인지. 이름이 없으면 id 앞자리로 대체.
+  const sessionLabel =
+    (current.session_name || '').trim() ||
+    (current.session_id && current.session_id !== 'default'
+      ? current.session_id.slice(0, 8)
+      : '');
+
   return (
     <DialogRoot
       open={!!current}
@@ -303,6 +315,11 @@ function ToolApprovalDialog(): JSX.Element {
         <DialogHeader>
           <DialogTitle>
             🛠️ 도구 사용 승인 요청
+            {sessionLabel && (
+              <Badge ml="2" colorPalette="purple" variant="solid">
+                {sessionLabel}
+              </Badge>
+            )}
             {pending > 0 && (
               <Badge ml="2" colorPalette="orange">
                 대기 {pending}건
@@ -313,6 +330,11 @@ function ToolApprovalDialog(): JSX.Element {
         <DialogBody>
           <Stack gap="2">
             <Text>
+              {sessionLabel && (
+                <>
+                  <b>{sessionLabel}</b> 세션에서{' '}
+                </>
+              )}
               미즈키가 <b>{current.tool_name}</b> 도구를 사용하려고 합니다.
             </Text>
             {current.intent && (
