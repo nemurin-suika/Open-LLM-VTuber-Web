@@ -5,6 +5,7 @@ import { Subject } from 'rxjs';
 import { ModelInfo } from '@/context/live2d-config-context';
 import { HistoryInfo } from '@/context/websocket-context';
 import { ConfigFile } from '@/context/character-config-context';
+import { SessionInfo } from '@/context/session-context';
 import { toaster } from '@/components/ui/toaster';
 
 export interface DisplayText {
@@ -111,6 +112,12 @@ export interface MessageEvent {
   supported?: boolean;
   // new-history-created: 접속 시 자동 생성인지 여부
   initial?: boolean;
+  // 다중 세션 (TODO19 2단계)
+  sessions?: SessionInfo[];
+  active_id?: string;
+  created_id?: string;
+  deleted_id?: string | null;
+  action?: string;
 }
 
 // Get translation function for error messages
@@ -170,6 +177,10 @@ class WebSocketService {
     this.sendMessage({
       type: 'create-new-history',
       initial: true,
+    });
+    // 다중 세션 목록 (TODO19 2단계). letta 이외 agent 면 supported=false 가 와서 레일이 숨는다.
+    this.sendMessage({
+      type: 'fetch-session-list',
     });
     // 재접속 대화 복원 (TODO19 1단계): 진짜 대화 원본인 letta 에서 직접 읽어온다.
     this.sendMessage({

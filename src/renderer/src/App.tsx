@@ -32,6 +32,8 @@ import Subtitle from "./components/canvas/subtitle";
 import { ModeProvider, useMode } from "./context/mode-context";
 import ToolApprovalDialog from "./components/tool-approval-dialog";
 import { ClaudeUsageProvider } from "./context/claude-usage-context";
+import { SessionProvider, useSession } from "./context/session-context";
+import SessionRail, { SESSION_RAIL_WIDTH } from "./components/sidebar/session-rail";
 
 function AppContent(): JSX.Element {
   const [showSidebar, setShowSidebar] = useState(true);
@@ -39,6 +41,10 @@ function AppContent(): JSX.Element {
   const { mode } = useMode();
   const isElectron = window.api !== undefined;
   const live2dContainerRef = useRef<HTMLDivElement>(null);
+  // 다중 세션 레일(TODO19 2단계)은 letta agent 에서만 보인다.
+  // Live2D 는 Flex 바깥의 absolute 요소라 레일 폭이 자동 반영되지 않아 직접 더해준다.
+  const { supported: sessionRailVisible } = useSession();
+  const railWidth = sessionRailVisible ? SESSION_RAIL_WIDTH : 0;
 
   useEffect(() => {
     const handleResize = () => {
@@ -69,20 +75,23 @@ function AppContent(): JSX.Element {
   };
 
   // Define styles specifically for the "window" mode, using responsive syntax
-  const getResponsiveLive2DWindowStyle = (sidebarVisible: boolean) => ({
-    ...live2dBaseStyle,
-    top: isElectron ? "30px" : "0px",
-    height: `calc(100% - ${isElectron ? "30px" : "0px"})`,
-    zIndex: 5, // Ensure it's layered correctly below UI but above background
-    left: {
-      base: "0px", // Column layout (base): Start from left edge
-      md: sidebarVisible ? "440px" : "24px", // Row layout (md+): Offset by sidebar width
-    },
-    width: {
-      base: "100%", // Column layout (base): Full width
-      md: `calc(100% - ${sidebarVisible ? "440px" : "24px"})`, // Row layout (md+): Adjust width based on sidebar
-    },
-  });
+  const getResponsiveLive2DWindowStyle = (sidebarVisible: boolean) => {
+    const leftOffset = `${(sidebarVisible ? 440 : 24) + railWidth}px`;
+    return {
+      ...live2dBaseStyle,
+      top: isElectron ? "30px" : "0px",
+      height: `calc(100% - ${isElectron ? "30px" : "0px"})`,
+      zIndex: 5, // Ensure it's layered correctly below UI but above background
+      left: {
+        base: "0px", // Column layout (base): Start from left edge
+        md: leftOffset, // Row layout (md+): Offset by session rail + sidebar width
+      },
+      width: {
+        base: "100%", // Column layout (base): Full width
+        md: `calc(100% - ${leftOffset})`, // Row layout (md+): Adjust width based on sidebar
+      },
+    };
+  };
 
   // Define styles specifically for the "pet" mode
   const live2dPetStyle = {
@@ -113,6 +122,7 @@ function AppContent(): JSX.Element {
           {isElectron && <TitleBar />}
           {/* Apply styles by spreading */}
           <Flex {...layoutStyles.appContainer}>
+            <SessionRail />
             <Box
               {...layoutStyles.sidebar}
               {...(!showSidebar && { width: "24px" })}
@@ -187,11 +197,13 @@ function AppWithGlobalStyles(): JSX.Element {
                         <BgUrlProvider>
                           <GroupProvider>
                             <BrowserProvider>
-                              <WebSocketHandler>
-                                <Toaster />
-                                <ToolApprovalDialog />
-                                <AppContent />
-                              </WebSocketHandler>
+                              <SessionProvider>
+                                <WebSocketHandler>
+                                  <Toaster />
+                                  <ToolApprovalDialog />
+                                  <AppContent />
+                                </WebSocketHandler>
+                              </SessionProvider>
                             </BrowserProvider>
                           </GroupProvider>
                         </BgUrlProvider>

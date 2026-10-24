@@ -27,6 +27,7 @@ import { configureWind } from '@/utils/wind-animator';
 import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 import { audioManager } from '@/utils/audio-manager';
 import { useClaudeUsage } from '@/context/claude-usage-context';
+import { useSession } from '@/context/session-context';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -50,6 +51,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { interrupt } = useInterrupt();
   const { setBrowserViewData } = useBrowser();
   const { setUsage } = useClaudeUsage();
+  const {
+    setSessions, setActiveSessionId, setSupported: setSessionSupported,
+  } = useSession();
 
   useEffect(() => {
     autoStartMicOnConvEndRef.current = autoStartMicOnConvEnd;
@@ -426,10 +430,44 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           timestamp: typeof message.timestamp === 'number' ? message.timestamp : undefined,
         });
         break;
+      // ── 다중 세션 (TODO19 2단계) ──────────────────────────────────────────
+      case 'session-list': {
+        const isSupported = message.supported !== false;
+        setSessionSupported(isSupported);
+        if (!isSupported) break;
+        setSessions(message.sessions || []);
+        const active = message.active_id || 'default';
+        setActiveSessionId(active);
+        if (message.created_id) {
+          // 새 세션은 대화가 비어 있는 상태로 시작한다 (기억은 agent 단위라 그대로 공유).
+          setMessages([]);
+          setHistoryCursor({ oldestId: null, hasMore: false, loading: false });
+          toaster.create({ title: '새 세션을 만들었어', type: 'success', duration: 2000 });
+        } else if (message.deleted_id) {
+          toaster.create({ title: '세션을 삭제했어', type: 'success', duration: 2000 });
+          // 삭제된 세션이 활성이었으면 백엔드가 메인으로 되돌리므로 그쪽 대화를 다시 불러온다.
+          setMessages([]);
+          setHistoryCursor({ oldestId: null, hasMore: false, loading: true });
+          wsService.sendMessage({
+            type: 'fetch-letta-history', limit: 50, conversation_id: active,
+          });
+        }
+        break;
+      }
+      case 'session-switched':
+        setActiveSessionId(message.active_id || 'default');
+        break;
+      case 'session-error':
+        toaster.create({
+          title: message.message || '세션 작업에 실패했어',
+          type: 'error',
+          duration: 3000,
+        });
+        break;
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+  }, [setSessions, setActiveSessionId, setSessionSupported, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);
