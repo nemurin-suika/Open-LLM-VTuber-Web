@@ -73,6 +73,8 @@ export interface MessageEvent {
   model_info?: ModelInfo;
   conf_name?: string;
   conf_uid?: string;
+  character_name?: string;
+  human_name?: string;
   uids?: string[];
   messages?: Message[];
   history_uid?: string;

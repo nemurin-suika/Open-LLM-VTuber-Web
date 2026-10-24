@@ -18,9 +18,15 @@ export interface ConfigFile {
 interface CharacterConfigState {
   confName: string;
   confUid: string;
+  /** AI 표시 이름 (conf.yaml character_name). 말풍선 화자 표시에 사용 */
+  characterName: string;
+  /** 사용자 표시 이름 (conf.yaml human_name) */
+  humanName: string;
   configFiles: ConfigFile[];
   setConfName: (name: string) => void;
   setConfUid: (uid: string) => void;
+  setCharacterName: (name: string) => void;
+  setHumanName: (name: string) => void;
   setConfigFiles: (files: ConfigFile[]) => void;
   getFilenameByName: (name: string) => string | undefined;
 }
@@ -31,6 +37,8 @@ interface CharacterConfigState {
 const DEFAULT_CONFIG = {
   confName: '',
   confUid: '',
+  characterName: '',
+  humanName: '',
   configFiles: [] as ConfigFile[],
 };
 
@@ -47,6 +55,8 @@ export const ConfigContext = createContext<CharacterConfigState | null>(null);
 export function CharacterConfigProvider({ children }: { children: React.ReactNode }) {
   const [confName, setConfName] = useState<string>(DEFAULT_CONFIG.confName);
   const [confUid, setConfUid] = useState<string>(DEFAULT_CONFIG.confUid);
+  const [characterName, setCharacterName] = useState<string>(DEFAULT_CONFIG.characterName);
+  const [humanName, setHumanName] = useState<string>(DEFAULT_CONFIG.humanName);
   const [configFiles, setConfigFiles] = useState<ConfigFile[]>(DEFAULT_CONFIG.configFiles);
 
   const getFilenameByName = useCallback(
@@ -59,13 +69,17 @@ export function CharacterConfigProvider({ children }: { children: React.ReactNod
     () => ({
       confName,
       confUid,
+      characterName,
+      humanName,
       configFiles,
       setConfName,
       setConfUid,
+      setCharacterName,
+      setHumanName,
       setConfigFiles,
       getFilenameByName,
     }),
-    [confName, confUid, configFiles, getFilenameByName],
+    [confName, confUid, characterName, humanName, configFiles, getFilenameByName],
   );
 
   useEffect(() => {

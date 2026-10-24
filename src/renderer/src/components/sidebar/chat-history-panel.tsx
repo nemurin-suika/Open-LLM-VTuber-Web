@@ -21,9 +21,12 @@ import { useTranslation } from 'react-i18next';
 function ChatHistoryPanel(): JSX.Element {
   const { t } = useTranslation();
   const { messages, agentStatus } = useChatHistory(); // Get messages directly from context
-  const { confName } = useConfig();
+  const { confName, characterName, humanName } = useConfig();
   const { baseUrl } = useWebSocket();
-  const userName = "Me";
+  // 화자 표시 이름. character_name/human_name(conf.yaml)이 우선,
+  // 없으면 설정파일 이름(confName)으로 폴백한다.
+  const aiName = characterName || confName || 'AI';
+  const userName = humanName || 'Me';
 
   // 클릭한 이미지 확대 표시용 상태. src와 label(파일명 등)을 함께 저장한다.
   const [enlargedImage, setEnlargedImage] = useState<{ src: string; label?: string } | null>(null);
@@ -154,7 +157,7 @@ function ChatHistoryPanel(): JSX.Element {
                       message: msg.content,
                       sentTime: msg.timestamp,
                       sender: msg.role === 'ai'
-                        ? (msg.name || confName || 'AI')
+                        ? (msg.name || aiName)
                         : userName,
                       direction: msg.role === 'ai' ? 'incoming' : 'outgoing',
                       position: 'single',
@@ -171,14 +174,13 @@ function ChatHistoryPanel(): JSX.Element {
                             style={{ width: '100%', height: '100%', borderRadius: '50%' }}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              const fallbackName = msg.name || confName || 'A';
+                              const fallbackName = msg.name || aiName;
                               target.outerHTML = `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: var(--chakra-colors-blue-500); color: white; font-size: 14px;">${fallbackName[0].toUpperCase()}</div>`;
                             }}
                           />
                         ) : (
                           (msg.name && msg.name[0].toUpperCase()) ||
-                            (confName && confName[0].toUpperCase()) ||
-                            'A'
+                            aiName[0].toUpperCase()
                         )
                       ) : (
                         userName[0].toUpperCase()

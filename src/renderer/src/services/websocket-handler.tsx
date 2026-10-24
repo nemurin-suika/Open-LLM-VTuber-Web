@@ -39,7 +39,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, setAgentStatus } = useChatHistory();
   const { addAudioTask } = useAudioTask();
   const bgUrlContext = useBgUrl();
-  const { confUid, setConfName, setConfUid, setConfigFiles } = useConfig();
+  const {
+    confUid, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName,
+  } = useConfig();
   const [pendingModelInfo, setPendingModelInfo] = useState<ModelInfo | undefined>(undefined);
   const { setSelfUid, setGroupMembers, setIsOwner } = useGroup();
   const { startMic, stopMic, autoStartMicOnConvEnd } = useVAD();
@@ -152,6 +154,13 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         if (message.conf_uid) {
           setConfUid(message.conf_uid);
           console.log('confUid', message.conf_uid);
+        }
+        // 말풍선 화자 표시용 이름. conf_name(설정파일 이름)과 다름에 주의
+        if (message.character_name) {
+          setCharacterName(message.character_name);
+        }
+        if (message.human_name) {
+          setHumanName(message.human_name);
         }
         if (message.client_uid) {
           setSelfUid(message.client_uid);
@@ -420,7 +429,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);
