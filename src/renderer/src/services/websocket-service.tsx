@@ -126,6 +126,10 @@ export interface MessageEvent {
   running_ids?: string[];
   /** 아직 열어보지 않은 발화가 쌓인 세션 id 목록 (session-list) */
   unread_ids?: string[];
+  /** 세션별 미확인 발화 덩어리 개수 (session-list) */
+  unread_counts?: Record<string, number>;
+  /** 그 세션에 쌓인 미확인 발화 덩어리 개수 (session-activity) */
+  count?: number;
   /** 전환한 세션에서 작업이 계속 돌고 있는지 (session-switched) */
   running?: boolean;
   /** 그 세션에 쌓여 대기 중인 턴 수 (session-switched) */

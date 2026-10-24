@@ -11,7 +11,7 @@ import {
  *  - 맨 위 + 버튼 = 새 세션
  *  - 아이콘 하나 = letta conversation 하나, 클릭하면 그 세션으로 이동
  *  - 호버하면 오른쪽에 세션 요약 툴팁
- *  - 비활성 세션의 발화가 끝나 있으면 왼쪽에 작은 점 (미확인 표시)
+ *  - 비활성 세션에 미확인 발화가 쌓이면 오른쪽 위에 개수 배지 (개수를 모르면 왼쪽 점)
  *  - 우클릭 삭제, 더블클릭 이름 변경 (메인 세션은 둘 다 불가)
  */
 export const SESSION_RAIL_WIDTH = 72;
@@ -28,6 +28,37 @@ function SessionDot() {
       borderRadius="full"
       bg="white"
     />
+  );
+}
+
+/**
+ * 미확인 발화 개수 배지 (TODO19 7단계)
+ *
+ * 세션을 떠난 뒤 그 세션에 쌓인 미즈키 대사 덩어리 수. 중간 알림은 세지 않는다.
+ * 열 개를 넘으면 9+ 로 줄여서 아이콘을 가리지 않게 한다.
+ */
+function UnreadBadge({ count }: { count: number }) {
+  return (
+    <Flex
+      position="absolute"
+      top="-4px"
+      right="-6px"
+      align="center"
+      justify="center"
+      minW="18px"
+      h="18px"
+      paddingX="4px"
+      borderRadius="full"
+      bg="purple.400"
+      border="2px solid"
+      borderColor="gray.900"
+      zIndex={1}
+      pointerEvents="none"
+    >
+      <Text fontSize="10px" fontWeight="bold" lineHeight="1" color="white">
+        {count > 9 ? '9+' : count}
+      </Text>
+    </Flex>
   );
 }
 
@@ -69,7 +100,7 @@ function ActivePill() {
 
 export default function SessionRail(): JSX.Element | null {
   const {
-    sessions, activeSessionId, unreadIds, runningIds, supported,
+    sessions, activeSessionId, unreadIds, unreadCounts, runningIds, supported,
     switchTo, createSession, deleteSession, renameSession,
   } = useSessionRail();
 
@@ -129,6 +160,7 @@ export default function SessionRail(): JSX.Element | null {
       {sessions.map((session, index) => {
         const isActive = session.id === activeSessionId;
         const hasUnread = unreadIds.includes(session.id);
+        const unreadCount = unreadCounts[session.id] || 0;
         const isRunning = runningIds.includes(session.id);
         return (
           <Tooltip
@@ -151,7 +183,8 @@ export default function SessionRail(): JSX.Element | null {
           >
             <Box position="relative" flexShrink={0}>
               {isActive && <ActivePill />}
-              {!isActive && hasUnread && <SessionDot />}
+              {!isActive && hasUnread && unreadCount === 0 && <SessionDot />}
+              {!isActive && unreadCount > 0 && <UnreadBadge count={unreadCount} />}
               {isRunning && <RunningRing />}
               <Flex
                 as="button"

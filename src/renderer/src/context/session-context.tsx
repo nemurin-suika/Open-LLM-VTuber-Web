@@ -30,14 +30,22 @@ interface SessionState {
   supported: boolean;
   /** 비활성 세션에서 발화가 끝나 아직 열어보지 않은 세션 id 목록 */
   unreadIds: string[];
+  /**
+   * 세션별 미확인 발화 덩어리 개수 (TODO19 7단계)
+   *
+   * 세는 대상은 미즈키 대사 턴만이고 중간 알림은 세지 않는다(네무린 선택).
+   * 개수를 모르는 미확인(= 알림만 올라온 상태)은 여기에 키가 없고 unreadIds 에만 들어간다.
+   */
+  unreadCounts: Record<string, number>;
   /** 지금 미즈키가 작업 중인(LLM 또는 TTS 진행 중) 세션 id 목록 */
   runningIds: string[];
   setSessions: (list: SessionInfo[]) => void;
   setActiveSessionId: (id: string) => void;
   setSupported: (value: boolean) => void;
-  markUnread: (id: string) => void;
+  markUnread: (id: string, count?: number) => void;
   clearUnread: (id: string) => void;
   setUnreadIds: (ids: string[]) => void;
+  setUnreadCounts: (counts: Record<string, number>) => void;
   setRunningIds: (ids: string[]) => void;
   markRunning: (id: string) => void;
   clearRunning: (id: string) => void;
@@ -52,15 +60,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string>('default');
   const [supported, setSupported] = useState<boolean>(false);
   const [unreadIds, setUnreadIds] = useState<string[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [runningIds, setRunningIds] = useState<string[]>([]);
 
-  const markUnread = useCallback((id: string) => {
+  const markUnread = useCallback((id: string, count?: number) => {
     if (!id) return;
     setUnreadIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    if (typeof count === 'number' && count > 0) {
+      setUnreadCounts((prev) => (prev[id] === count ? prev : { ...prev, [id]: count }));
+    }
   }, []);
 
   const clearUnread = useCallback((id: string) => {
     setUnreadIds((prev) => prev.filter((x) => x !== id));
+    setUnreadCounts((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }, []);
 
   const markRunning = useCallback((id: string) => {
@@ -82,6 +100,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     activeSessionId,
     supported,
     unreadIds,
+    unreadCounts,
     runningIds,
     setSessions,
     setActiveSessionId,
@@ -89,12 +108,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     markUnread,
     clearUnread,
     setUnreadIds,
+    setUnreadCounts,
     setRunningIds,
     markRunning,
     clearRunning,
     updateSessionGist,
   }), [
-    sessions, activeSessionId, supported, unreadIds, runningIds,
+    sessions, activeSessionId, supported, unreadIds, unreadCounts, runningIds,
     markUnread, clearUnread, markRunning, clearRunning, updateSessionGist,
   ]);
 

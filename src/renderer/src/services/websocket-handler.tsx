@@ -53,7 +53,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { setUsage } = useClaudeUsage();
   const {
     setSessions, setActiveSessionId, setSupported: setSessionSupported,
-    updateSessionGist, activeSessionId, markUnread, setUnreadIds,
+    updateSessionGist, activeSessionId, markUnread, setUnreadIds, setUnreadCounts,
     setRunningIds, markRunning, clearRunning,
   } = useSession();
   // 핸들러가 재구성되지 않아도 최신 활성 세션을 볼 수 있게 ref 로도 들고 있는다.
@@ -415,9 +415,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         }
         break;
       case 'session-activity':
-        // 비활성 세션에서 발화가 완성됨 → 레일에 미확인 점
+        // 비활성 세션에서 발화가 완성됨 → 레일에 미확인 개수 배지
         if (message.session_id) {
-          markUnread(message.session_id);
+          markUnread(message.session_id, message.count);
           clearRunning(message.session_id);
         }
         break;
@@ -481,6 +481,13 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         if (Array.isArray(message.unread_ids)) {
           setUnreadIds(message.unread_ids.filter((id: string) => id !== active));
         }
+        if (message.unread_counts && typeof message.unread_counts === 'object') {
+          const counts: Record<string, number> = {};
+          Object.entries(message.unread_counts).forEach(([sid, n]) => {
+            if (sid !== active && typeof n === 'number' && n > 0) counts[sid] = n;
+          });
+          setUnreadCounts(counts);
+        }
         if (message.created_id) {
           // 새 세션은 대화가 비어 있는 상태로 시작한다 (기억은 agent 단위라 그대로 공유).
           setMessages([]);
@@ -520,7 +527,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         console.warn('Unknown message type:', message.type);
     }
   }, [setSessions, setActiveSessionId, setSessionSupported, updateSessionGist,
-    markUnread, setUnreadIds, setRunningIds, markRunning, clearRunning, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+    markUnread, setUnreadIds, setUnreadCounts, setRunningIds, markRunning, clearRunning, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);
