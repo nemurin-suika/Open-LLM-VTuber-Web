@@ -5,7 +5,7 @@
 /* eslint-disable import/order */
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable react/require-default-props */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Spinner, Flex, Text, Icon } from '@chakra-ui/react';
 import { sidebarStyles, chatPanelStyles } from './sidebar-styles';
 import { MainContainer, ChatContainer, MessageList as ChatMessageList, Message as ChatMessage, Avatar as ChatAvatar } from '@chatscope/chat-ui-kit-react';
@@ -14,15 +14,22 @@ import { useChatHistory } from '@/context/chat-history-context';
 import { Global } from '@emotion/react';
 import { useConfig } from '@/context/character-config-context';
 import { useWebSocket } from '@/context/websocket-context';
+import { useSession } from '@/context/session-context';
 import { FaTools, FaCheck, FaTimes } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+
+/** 위로 스크롤 추가 로드로 한 번에 가져올 과거 메시지 개수 */
+const LOAD_MORE_LIMIT = 50;
 
 // Main component
 function ChatHistoryPanel(): JSX.Element {
   const { t } = useTranslation();
-  const { messages, agentStatus } = useChatHistory(); // Get messages directly from context
+  const {
+    messages, agentStatus, historyCursor, setHistoryCursor,
+  } = useChatHistory(); // Get messages directly from context
   const { confName, characterName, humanName } = useConfig();
-  const { baseUrl } = useWebSocket();
+  const { baseUrl, sendMessage } = useWebSocket();
+  const { activeSessionId } = useSession();
   // 화자 표시 이름. character_name/human_name(conf.yaml)이 우선,
   // 없으면 설정파일 이름(confName)으로 폴백한다.
   const aiName = characterName || confName || 'AI';
@@ -30,6 +37,39 @@ function ChatHistoryPanel(): JSX.Element {
 
   // 클릭한 이미지 확대 표시용 상태. src와 label(파일명 등)을 함께 저장한다.
   const [enlargedImage, setEnlargedImage] = useState<{ src: string; label?: string } | null>(null);
+
+  // --- 위로 스크롤 추가 로드 (TODO19 6단계) -------------------------------
+  // 과거 메시지를 앞쪽에 덧붙이면 스크롤 위치가 그만큼 밀려 올라가므로,
+  // 요청 직전의 scrollHeight 를 기억해 두고 도착 후 차이만큼 scrollTop 을 보정한다.
+  const pendingScrollRef = useRef<{ el: HTMLDivElement; prevHeight: number } | null>(null);
+  // historyCursor 를 콜백 의존성에서 떼어내기 위한 최신값 보관.
+  const cursorRef = useRef(historyCursor);
+  cursorRef.current = historyCursor;
+
+  const handleYReachStart = useCallback((container: HTMLDivElement) => {
+    const cursor = cursorRef.current;
+    if (!cursor.hasMore || cursor.loading || !cursor.oldestId) return;
+    // 마운트 직후(스크롤이 거의 없는 상태)의 오인 발동을 막는다.
+    if (container.scrollHeight <= container.clientHeight) return;
+    pendingScrollRef.current = { el: container, prevHeight: container.scrollHeight };
+    setHistoryCursor((prev) => ({ ...prev, loading: true }));
+    sendMessage({
+      type: 'fetch-letta-history',
+      limit: LOAD_MORE_LIMIT,
+      before: cursor.oldestId,
+      conversation_id: activeSessionId,
+    });
+  }, [sendMessage, setHistoryCursor, activeSessionId]);
+
+  useEffect(() => {
+    // 로드가 끝난 뒤(loading=false)에만 보정한다. 결과가 비어 있어도 ref 는 비워 준다.
+    if (historyCursor.loading) return;
+    const pending = pendingScrollRef.current;
+    if (!pending) return;
+    pendingScrollRef.current = null;
+    const grown = pending.el.scrollHeight - pending.prevHeight;
+    if (grown > 0) pending.el.scrollTop += grown;
+  }, [messages.length, historyCursor.loading]);
 
   // Esc 키로 확대 뷰 닫기
   useEffect(() => {
@@ -58,7 +98,12 @@ function ChatHistoryPanel(): JSX.Element {
       <Global styles={chatPanelStyles} />
       <MainContainer>
         <ChatContainer>
-          <ChatMessageList>
+          <ChatMessageList
+            loadingMore={historyCursor.loading}
+            loadingMorePosition="top"
+            onYReachStart={handleYReachStart}
+            disableOnYReachWhenNoScroll
+          >
             {validMessages.length === 0 ? (
               <Box
                 display="flex"
