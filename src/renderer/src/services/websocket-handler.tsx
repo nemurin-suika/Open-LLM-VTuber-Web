@@ -53,8 +53,14 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { setUsage } = useClaudeUsage();
   const {
     setSessions, setActiveSessionId, setSupported: setSessionSupported,
-    updateSessionGist,
+    updateSessionGist, activeSessionId, markUnread, setUnreadIds,
+    setRunningIds, markRunning, clearRunning,
   } = useSession();
+  // 핸들러가 재구성되지 않아도 최신 활성 세션을 볼 수 있게 ref 로도 들고 있는다.
+  const activeSessionIdRef = useRef(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
 
   useEffect(() => {
     autoStartMicOnConvEndRef.current = autoStartMicOnConvEnd;
@@ -235,6 +241,9 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             model_scale: message.actions?.model_scale ?? null,
             volume_adjustment: message.actions?.volume_adjustment ?? null,
             forwarded: message.forwarded || false,
+            // 비활성 세션에서 쌓였다가 뒤늦게 재생되는 발화 — 글은 이미 복원되어
+            // 있으므로 채팅 기록에 또 추가하지 않고 소리와 입모양만 재생한다.
+            replayOnly: message.replay_only || false,
           });
         }
         break;
@@ -274,6 +283,14 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           hasMore: Boolean(message.has_more),
           loading: false,
         });
+        // 글 복원이 끝났으니, 이 세션에 쌓여 있던 마지막 발화를 음성으로 들려달라고 요청.
+        // (버퍼가 없으면 백엔드가 조용히 무시한다)
+        if (!message.append) {
+          wsService.sendMessage({
+            type: 'replay-session-buffer',
+            conversation_id: message.conversation_id || activeSessionIdRef.current,
+          });
+        }
         break;
       }
       case 'new-history-created':
@@ -383,8 +400,21 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         interrupt(false); // do not send interrupt signal to server
         break;
       case 'progress_update':
+        // 다중 세션: 다른 세션에서 돌고 있는 작업의 중간 알림은 지금 화면에 끼우지 않는다.
+        if (message.session_id && message.session_id !== activeSessionIdRef.current) {
+          markUnread(message.session_id);
+          markRunning(message.session_id);
+          break;
+        }
         if (message.text) {
           appendProgressMessage(message.text);
+        }
+        break;
+      case 'session-activity':
+        // 비활성 세션에서 발화가 완성됨 → 레일에 미확인 점
+        if (message.session_id) {
+          markUnread(message.session_id);
+          clearRunning(message.session_id);
         }
         break;
       case 'tool_call_status':
@@ -439,6 +469,14 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         setSessions(message.sessions || []);
         const active = message.active_id || 'default';
         setActiveSessionId(active);
+        // 서버가 들고 있는 진행중·미확인 상태를 그대로 받아 레일에 표시
+        // (새로고침해도 다른 세션 작업 상태가 유지된다)
+        if (Array.isArray(message.running_ids)) {
+          setRunningIds(message.running_ids.filter((id: string) => id !== active));
+        }
+        if (Array.isArray(message.unread_ids)) {
+          setUnreadIds(message.unread_ids.filter((id: string) => id !== active));
+        }
         if (message.created_id) {
           // 새 세션은 대화가 비어 있는 상태로 시작한다 (기억은 agent 단위라 그대로 공유).
           setMessages([]);
@@ -455,9 +493,14 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         }
         break;
       }
-      case 'session-switched':
-        setActiveSessionId(message.active_id || 'default');
+      case 'session-switched': {
+        const switched = message.active_id || 'default';
+        setActiveSessionId(switched);
+        // 넘어온 세션에서 아직 작업이 돌고 있으면 진행 표시를 유지한다.
+        if (message.running) markRunning(switched);
+        else clearRunning(switched);
         break;
+      }
       case 'session-gist-updated':
         // 미즈키가 턴 끝에 남긴 한 줄 요약 → 레일 호버 툴팁 둘째 줄
         updateSessionGist(message.session_id || 'default', message.gist || '');
@@ -472,7 +515,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [setSessions, setActiveSessionId, setSessionSupported, updateSessionGist, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+  }, [setSessions, setActiveSessionId, setSessionSupported, updateSessionGist,
+    markUnread, setUnreadIds, setRunningIds, markRunning, clearRunning, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

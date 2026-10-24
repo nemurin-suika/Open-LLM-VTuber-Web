@@ -31,6 +31,27 @@ function SessionDot() {
   );
 }
 
+function RunningRing() {
+  return (
+    <Box
+      position="absolute"
+      inset="-3px"
+      borderRadius="26px"
+      border="2px solid"
+      borderColor="green.300"
+      opacity={0.9}
+      pointerEvents="none"
+      css={{
+        animation: 'mizukiSessionPulse 1.6s ease-in-out infinite',
+        '@keyframes mizukiSessionPulse': {
+          '0%, 100%': { opacity: 0.25 },
+          '50%': { opacity: 1 },
+        },
+      }}
+    />
+  );
+}
+
 function ActivePill() {
   return (
     <Box
@@ -48,7 +69,7 @@ function ActivePill() {
 
 export default function SessionRail(): JSX.Element | null {
   const {
-    sessions, activeSessionId, unreadIds, supported,
+    sessions, activeSessionId, unreadIds, runningIds, supported,
     switchTo, createSession, deleteSession, renameSession,
   } = useSessionRail();
 
@@ -108,6 +129,7 @@ export default function SessionRail(): JSX.Element | null {
       {sessions.map((session, index) => {
         const isActive = session.id === activeSessionId;
         const hasUnread = unreadIds.includes(session.id);
+        const isRunning = runningIds.includes(session.id);
         return (
           <Tooltip
             key={session.id}
@@ -130,6 +152,7 @@ export default function SessionRail(): JSX.Element | null {
             <Box position="relative" flexShrink={0}>
               {isActive && <ActivePill />}
               {!isActive && hasUnread && <SessionDot />}
+              {isRunning && <RunningRing />}
               <Flex
                 as="button"
                 align="center"

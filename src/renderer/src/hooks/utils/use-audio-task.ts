@@ -32,6 +32,12 @@ interface AudioTaskOptions {
   volume_adjustment?: number | null
   speaker_uid?: string
   forwarded?: boolean
+  /**
+   * 비활성 세션에서 쌓였다가 세션 전환 후 재생되는 발화.
+   * 글은 letta 기록 복원으로 이미 화면에 있으므로 채팅에 다시 쌓지 않고
+   * 자막·소리·입모양만 처리한다 (TODO19 다중 세션 소리 정책).
+   */
+  replayOnly?: boolean
 }
 
 /**
@@ -90,7 +96,10 @@ export const useAudioTask = () => {
       return;
     }
 
-    const { audioBase64, displayText, expressions, gaze, movement, model_scale, volume_adjustment, forwarded } = options;
+    const {
+      audioBase64, displayText, expressions, gaze, movement,
+      model_scale, volume_adjustment, forwarded, replayOnly,
+    } = options;
 
     // Apply cumulative volume adjustment before playback
     if (volume_adjustment != null) {
@@ -103,8 +112,10 @@ export const useAudioTask = () => {
     // Update display text (strip LLM control tags before showing)
     if (displayText) {
       const cleanText = stripLLMTags(displayText.text);
-      appendText(cleanText);
-      appendAI(cleanText, displayText.name, displayText.avatar);
+      if (!replayOnly) {
+        appendText(cleanText);
+        appendAI(cleanText, displayText.name, displayText.avatar);
+      }
       if (audioBase64) {
         updateSubtitle(cleanText);
       }

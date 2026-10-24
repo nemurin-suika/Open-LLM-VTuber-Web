@@ -2,6 +2,9 @@ import { useCallback } from 'react';
 import { useSession, SessionInfo } from '@/context/session-context';
 import { useWebSocket } from '@/context/websocket-context';
 import { useChatHistory } from '@/context/chat-history-context';
+import { useAiState } from '@/context/ai-state-context';
+import { audioTaskQueue } from '@/utils/task-queue';
+import { audioManager } from '@/utils/audio-manager';
 
 /**
  * 세션 레일 동작 (TODO19 2단계)
@@ -13,14 +16,24 @@ import { useChatHistory } from '@/context/chat-history-context';
  */
 export function useSessionRail() {
   const {
-    sessions, activeSessionId, unreadIds, supported,
-    setActiveSessionId, clearUnread,
+    sessions, activeSessionId, unreadIds, runningIds, supported,
+    setActiveSessionId, clearUnread, markRunning,
   } = useSession();
   const { sendMessage } = useWebSocket();
   const { setMessages, setHistoryCursor } = useChatHistory();
+  const { aiState, setAiState } = useAiState();
 
   const switchTo = useCallback((id: string) => {
     if (!id || id === activeSessionId) return;
+    // 떠나는 세션이 아직 말하는 중이면, 그 작업은 백엔드에서 계속 돌아간다.
+    // 레일에 작업중 표시를 남겨두고 화면만 넘긴다 (작업을 끊지 않는다).
+    if (aiState === 'thinking-speaking') {
+      markRunning(activeSessionId);
+    }
+    // 이전 세션의 재생 중 오디오는 여기서 멈춘다. 글은 letta 에 남아 있다.
+    audioTaskQueue.clearQueue();
+    audioManager.stopCurrentAudioAndLipSync();
+    setAiState('idle');
     // 낙관적 전환: 응답을 기다리지 않고 바로 활성 표시를 옮긴다.
     setActiveSessionId(id);
     clearUnread(id);
@@ -34,7 +47,10 @@ export function useSessionRail() {
       name: sessionName(sessions[idx], idx < 0 ? 0 : idx),
     });
     sendMessage({ type: 'fetch-letta-history', limit: 50, conversation_id: id });
-  }, [sessions, activeSessionId, setActiveSessionId, clearUnread, setMessages, setHistoryCursor, sendMessage]);
+  }, [
+    sessions, activeSessionId, aiState, setAiState, markRunning,
+    setActiveSessionId, clearUnread, setMessages, setHistoryCursor, sendMessage,
+  ]);
 
   const createSession = useCallback(() => {
     // 생성 성공 시 백엔드가 그 세션으로 전환한 뒤 session-list 를 돌려준다.
@@ -58,6 +74,7 @@ export function useSessionRail() {
     sessions,
     activeSessionId,
     unreadIds,
+    runningIds,
     supported,
     switchTo,
     createSession,

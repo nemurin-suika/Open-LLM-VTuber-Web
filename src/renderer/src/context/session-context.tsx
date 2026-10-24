@@ -30,11 +30,17 @@ interface SessionState {
   supported: boolean;
   /** 비활성 세션에서 발화가 끝나 아직 열어보지 않은 세션 id 목록 */
   unreadIds: string[];
+  /** 지금 미즈키가 작업 중인(LLM 또는 TTS 진행 중) 세션 id 목록 */
+  runningIds: string[];
   setSessions: (list: SessionInfo[]) => void;
   setActiveSessionId: (id: string) => void;
   setSupported: (value: boolean) => void;
   markUnread: (id: string) => void;
   clearUnread: (id: string) => void;
+  setUnreadIds: (ids: string[]) => void;
+  setRunningIds: (ids: string[]) => void;
+  markRunning: (id: string) => void;
+  clearRunning: (id: string) => void;
   /** 미즈키가 턴 끝에 보내온 한 줄 요약을 해당 세션에 반영 */
   updateSessionGist: (id: string, gist: string) => void;
 }
@@ -46,6 +52,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string>('default');
   const [supported, setSupported] = useState<boolean>(false);
   const [unreadIds, setUnreadIds] = useState<string[]>([]);
+  const [runningIds, setRunningIds] = useState<string[]>([]);
 
   const markUnread = useCallback((id: string) => {
     if (!id) return;
@@ -54,6 +61,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const clearUnread = useCallback((id: string) => {
     setUnreadIds((prev) => prev.filter((x) => x !== id));
+  }, []);
+
+  const markRunning = useCallback((id: string) => {
+    if (!id) return;
+    setRunningIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
+  const clearRunning = useCallback((id: string) => {
+    setRunningIds((prev) => prev.filter((x) => x !== id));
   }, []);
 
   const updateSessionGist = useCallback((id: string, gist: string) => {
@@ -66,13 +82,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     activeSessionId,
     supported,
     unreadIds,
+    runningIds,
     setSessions,
     setActiveSessionId,
     setSupported,
     markUnread,
     clearUnread,
+    setUnreadIds,
+    setRunningIds,
+    markRunning,
+    clearRunning,
     updateSessionGist,
-  }), [sessions, activeSessionId, supported, unreadIds, markUnread, clearUnread, updateSessionGist]);
+  }), [
+    sessions, activeSessionId, supported, unreadIds, runningIds,
+    markUnread, clearUnread, markRunning, clearRunning, updateSessionGist,
+  ]);
 
   return (
     <SessionContext.Provider value={value}>

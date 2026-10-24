@@ -121,6 +121,19 @@ export interface MessageEvent {
   // 미즈키가 턴 끝에 남긴 세션 한 줄 요약
   session_id?: string;
   gist?: string;
+  // 다중 세션 동시 처리 (TODO19 3단계)
+  /** 지금 작업이 돌고 있는 세션 id 목록 (session-list) */
+  running_ids?: string[];
+  /** 아직 열어보지 않은 발화가 쌓인 세션 id 목록 (session-list) */
+  unread_ids?: string[];
+  /** 전환한 세션에서 작업이 계속 돌고 있는지 (session-switched) */
+  running?: boolean;
+  /** 그 세션에 쌓여 대기 중인 턴 수 (session-switched) */
+  pending_turns?: number;
+  /** 뒤늦게 재생되는 발화 — 채팅 기록에 다시 쌓지 않는다 (audio) */
+  replay_only?: boolean;
+  /** letta-history-data 가 어느 세션의 복원인지 */
+  conversation_id?: string;
 }
 
 // Get translation function for error messages
