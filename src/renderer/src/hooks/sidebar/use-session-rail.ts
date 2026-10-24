@@ -26,9 +26,15 @@ export function useSessionRail() {
     clearUnread(id);
     setMessages([]);
     setHistoryCursor({ oldestId: null, hasMore: false, loading: true });
-    sendMessage({ type: 'switch-session', conversation_id: id });
+    // 세션 이름도 같이 보낸다 → 미즈키가 발화 앞의 [세션] 태그로 받아본다.
+    const idx = sessions.findIndex((s) => s.id === id);
+    sendMessage({
+      type: 'switch-session',
+      conversation_id: id,
+      name: sessionName(sessions[idx], idx < 0 ? 0 : idx),
+    });
     sendMessage({ type: 'fetch-letta-history', limit: 50, conversation_id: id });
-  }, [activeSessionId, setActiveSessionId, clearUnread, setMessages, setHistoryCursor, sendMessage]);
+  }, [sessions, activeSessionId, setActiveSessionId, clearUnread, setMessages, setHistoryCursor, sendMessage]);
 
   const createSession = useCallback(() => {
     // 생성 성공 시 백엔드가 그 세션으로 전환한 뒤 session-list 를 돌려준다.
@@ -43,7 +49,8 @@ export function useSessionRail() {
   }, [sendMessage]);
 
   const renameSession = useCallback((id: string, summary: string) => {
-    if (!id || id === 'default') return;
+    // 메인(default)도 이름은 바꿀 수 있다. 삭제만 막는다.
+    if (!id) return;
     sendMessage({ type: 'rename-session', conversation_id: id, summary });
   }, [sendMessage]);
 
@@ -61,16 +68,29 @@ export function useSessionRail() {
 
 /** 레일 아이콘에 넣을 짧은 라벨 (디스코드 서버 이니셜과 같은 역할) */
 export function sessionLabel(session: SessionInfo, index: number): string {
-  if (session.is_default) return '메인';
-  const summary = (session.summary || '').trim();
-  if (summary) return summary.slice(0, 2);
+  const name = sessionName(session, index);
+  if (session.is_default) return name.slice(0, 2) || '메인';
+  const trimmed = name.trim();
+  if (trimmed && !trimmed.startsWith('세션 ')) return trimmed.slice(0, 2);
   return String(index);
 }
 
-/** 호버 툴팁에 띄울 전체 설명 */
+/** 사용자가 정한 세션 이름. 없으면 순번으로 대체 */
+export function sessionName(session: SessionInfo | undefined, index: number): string {
+  if (!session) return '';
+  const name = (session.name ?? session.summary ?? '').trim();
+  if (name) return name;
+  return session.is_default ? '메인' : `세션 ${index}`;
+}
+
+/** 미즈키가 남긴 최근 대화 한 줄 요약 (없으면 빈 문자열) */
+export function sessionGist(session: SessionInfo): string {
+  return (session.gist || '').trim();
+}
+
+/** 호버 툴팁 한 줄 텍스트 (confirm 대화상자 등 평문이 필요한 곳용) */
 export function sessionTooltip(session: SessionInfo, index: number): string {
-  if (session.is_default) return '메인 세션';
-  const summary = (session.summary || '').trim();
-  if (summary) return summary;
-  return `세션 ${index}`;
+  const name = sessionName(session, index);
+  const gist = sessionGist(session);
+  return gist ? `${name} — ${gist}` : name;
 }

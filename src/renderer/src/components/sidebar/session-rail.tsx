@@ -2,7 +2,7 @@ import { Box, Flex, Text } from '@chakra-ui/react';
 import { FiPlus } from 'react-icons/fi';
 import { Tooltip } from '@/components/ui/tooltip';
 import {
-  useSessionRail, sessionLabel, sessionTooltip,
+  useSessionRail, sessionLabel, sessionName, sessionGist,
 } from '@/hooks/sidebar/use-session-rail';
 
 /**
@@ -111,7 +111,18 @@ export default function SessionRail(): JSX.Element | null {
         return (
           <Tooltip
             key={session.id}
-            content={sessionTooltip(session, index)}
+            content={(
+              <Box maxW="240px">
+                <Text fontSize="13px" fontWeight="bold" lineHeight="1.3">
+                  {sessionName(session, index)}
+                </Text>
+                {sessionGist(session) && (
+                  <Text fontSize="12px" opacity={0.8} mt="2px" lineHeight="1.35">
+                    {sessionGist(session)}
+                  </Text>
+                )}
+              </Box>
+            )}
             positioning={{ placement: 'right' }}
             openDelay={200}
             portalled
@@ -132,16 +143,15 @@ export default function SessionRail(): JSX.Element | null {
                 _hover={{ borderRadius: '14px', bg: isActive ? 'purple.500' : 'purple.400' }}
                 onClick={() => switchTo(session.id)}
                 onDoubleClick={() => {
-                  if (session.is_default) return;
                   // eslint-disable-next-line no-alert
-                  const next = window.prompt('세션 이름', session.summary || '');
+                  const next = window.prompt('세션 이름', sessionName(session, index));
                   if (next !== null) renameSession(session.id, next);
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   if (session.is_default) return;
                   // eslint-disable-next-line no-alert
-                  if (window.confirm(`세션 "${sessionTooltip(session, index)}" 을 삭제할까?`)) {
+                  if (window.confirm(`세션 "${sessionName(session, index)}" 을 삭제할까?`)) {
                     deleteSession(session.id);
                   }
                 }}

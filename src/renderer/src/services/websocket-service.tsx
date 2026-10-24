@@ -118,6 +118,9 @@ export interface MessageEvent {
   created_id?: string;
   deleted_id?: string | null;
   action?: string;
+  // 미즈키가 턴 끝에 남긴 세션 한 줄 요약
+  session_id?: string;
+  gist?: string;
 }
 
 // Get translation function for error messages

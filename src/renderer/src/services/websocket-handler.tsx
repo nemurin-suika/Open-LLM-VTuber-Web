@@ -53,6 +53,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { setUsage } = useClaudeUsage();
   const {
     setSessions, setActiveSessionId, setSupported: setSessionSupported,
+    updateSessionGist,
   } = useSession();
 
   useEffect(() => {
@@ -457,6 +458,10 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       case 'session-switched':
         setActiveSessionId(message.active_id || 'default');
         break;
+      case 'session-gist-updated':
+        // 미즈키가 턴 끝에 남긴 한 줄 요약 → 레일 호버 툴팁 둘째 줄
+        updateSessionGist(message.session_id || 'default', message.gist || '');
+        break;
       case 'session-error':
         toaster.create({
           title: message.message || '세션 작업에 실패했어',
@@ -467,7 +472,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [setSessions, setActiveSessionId, setSessionSupported, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+  }, [setSessions, setActiveSessionId, setSessionSupported, updateSessionGist, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

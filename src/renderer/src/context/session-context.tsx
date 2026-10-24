@@ -6,12 +6,18 @@ import {
 /**
  * 세션 하나 = letta conversation 하나 (TODO19 2단계)
  *
- * letta Conversation 스키마에는 name/title 필드가 없어 summary 를 제목으로 쓴다.
+ * letta Conversation 스키마에는 name/title 필드가 없어 summary 안에
+ * {"n": 이름, "g": 한 줄 요약} 을 JSON 으로 담고, 백엔드가 name/gist 로 풀어서 보낸다.
  * id === 'default' 는 기존 단일 대화를 가리키는 가상 세션이며 삭제할 수 없다.
  */
 export interface SessionInfo {
   id: string;
+  /** 하위호환용. 백엔드가 name 과 같은 값을 넣어준다 */
   summary: string;
+  /** 사용자가 정한 세션 이름 */
+  name?: string;
+  /** 미즈키가 남긴 최근 대화 한 줄 요약 */
+  gist?: string;
   created_at: string;
   last_message_at: string;
   is_default: boolean;
@@ -29,6 +35,8 @@ interface SessionState {
   setSupported: (value: boolean) => void;
   markUnread: (id: string) => void;
   clearUnread: (id: string) => void;
+  /** 미즈키가 턴 끝에 보내온 한 줄 요약을 해당 세션에 반영 */
+  updateSessionGist: (id: string, gist: string) => void;
 }
 
 export const SessionContext = createContext<SessionState | null>(null);
@@ -48,6 +56,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUnreadIds((prev) => prev.filter((x) => x !== id));
   }, []);
 
+  const updateSessionGist = useCallback((id: string, gist: string) => {
+    if (!id) return;
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, gist } : s)));
+  }, []);
+
   const value = useMemo<SessionState>(() => ({
     sessions,
     activeSessionId,
@@ -58,7 +71,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setSupported,
     markUnread,
     clearUnread,
-  }), [sessions, activeSessionId, supported, unreadIds, markUnread, clearUnread]);
+    updateSessionGist,
+  }), [sessions, activeSessionId, supported, unreadIds, markUnread, clearUnread, updateSessionGist]);
 
   return (
     <SessionContext.Provider value={value}>
