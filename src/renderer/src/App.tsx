@@ -33,6 +33,7 @@ import { ModeProvider, useMode } from "./context/mode-context";
 import ToolApprovalDialog from "./components/tool-approval-dialog";
 import { ClaudeUsageProvider } from "./context/claude-usage-context";
 import { SessionProvider, useSession } from "./context/session-context";
+import { AttachmentProvider } from "./context/attachment-context";
 import SessionRail, { SESSION_RAIL_WIDTH } from "./components/sidebar/session-rail";
 
 function AppContent(): JSX.Element {
@@ -198,11 +199,13 @@ function AppWithGlobalStyles(): JSX.Element {
                           <GroupProvider>
                             <BrowserProvider>
                               <SessionProvider>
-                                <WebSocketHandler>
-                                  <Toaster />
-                                  <ToolApprovalDialog />
-                                  <AppContent />
-                                </WebSocketHandler>
+                                <AttachmentProvider>
+                                  <WebSocketHandler>
+                                    <Toaster />
+                                    <ToolApprovalDialog />
+                                    <AppContent />
+                                  </WebSocketHandler>
+                                </AttachmentProvider>
                               </SessionProvider>
                             </BrowserProvider>
                           </GroupProvider>

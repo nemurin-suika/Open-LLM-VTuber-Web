@@ -6,6 +6,7 @@ import { useChatHistory } from '@/context/chat-history-context';
 import { useVAD } from '@/context/vad-context';
 import { useMediaCapture } from '@/hooks/utils/use-media-capture';
 import { useProactiveSpeak } from '@/context/proactive-speak-context';
+import { useAttachments } from '@/context/attachment-context';
 import { audioManager } from '@/utils/audio-manager';
 
 export function useTextInput() {
@@ -18,6 +19,7 @@ export function useTextInput() {
   const { stopMic, autoStopMic } = useVAD();
   const { captureAllMedia, captureSystemAudio } = useMediaCapture();
   const { resetIdleTimer } = useProactiveSpeak();
+  const { attachments, clearAttachments } = useAttachments();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
@@ -25,7 +27,9 @@ export function useTextInput() {
   };
 
   const handleSend = async () => {
-    if (!inputText.trim() || !wsContext) return;
+    const trimmed = inputText.trim();
+    // 첨부만 올려서 보내는 것도 허용 — 이미지 자체가 할 말을 대신하는 경우가 있다.
+    if ((!trimmed && attachments.length === 0) || !wsContext) return;
     // Removed: auto-interrupt when AI is speaking.
     // Text input is now queued and plays after the current output.
 
@@ -43,17 +47,27 @@ export function useTextInput() {
       captureSystemAudio(),
     ]);
 
-    appendHumanMessage(inputText.trim());
+    // 직접 첨부한 이미지는 캡처 이미지 뒤에 붙인다. 백엔드가 태그를 순서대로
+    // 프롬프트에 쌓으므로 사용자가 고른 이미지가 질문 문장 바로 앞에 오게 된다.
+    const uploaded = attachments.map((att) => ({
+      source: 'upload' as const,
+      data: att.data,
+      mime_type: att.mime_type,
+      name: att.name,
+    }));
+
+    if (trimmed) appendHumanMessage(trimmed);
     wsContext.sendMessage({
       type: 'text-input',
-      text: inputText.trim(),
-      images,
+      text: trimmed,
+      images: [...images, ...uploaded],
       system_audio,
       current_volume: Math.round(audioManager.getVolume() * 100),
     });
 
     if (autoStopMic) stopMic();
     setInputText('');
+    clearAttachments();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {

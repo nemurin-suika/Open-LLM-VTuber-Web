@@ -5,7 +5,7 @@ import {
 import { BsMicFill, BsMicMuteFill, BsPaperclip, BsVolumeUpFill, BsVolumeMuteFill } from 'react-icons/bs';
 import { IoHandRightSharp } from 'react-icons/io5';
 import { FiChevronDown } from 'react-icons/fi';
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InputGroup } from '@/components/ui/input-group';
 import { Slider } from '@/components/ui/slider';
@@ -18,7 +18,9 @@ import { LuCrosshair } from 'react-icons/lu';
 import { footerStyles } from './footer-styles';
 import AIStateIndicator from './ai-state-indicator';
 import QueuedInputBar from './queued-input-bar';
+import AttachmentBar from './attachment-bar';
 import { useFooter } from '@/hooks/footer/use-footer';
+import { useAttachments } from '@/context/attachment-context';
 
 // Type definitions
 interface FooterProps {
@@ -133,13 +135,67 @@ const MessageInput = memo(({
   onCompositionEnd,
 }: MessageInputProps) => {
   const { t } = useTranslation();
+  const { addFiles } = useAttachments();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // 파일 선택 — 같은 파일을 연달아 고를 수 있도록 value 를 비운다.
+  const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { files } = e.target;
+    if (files && files.length > 0) addFiles(files);
+    e.target.value = '';
+  };
+
+  // 스크린샷을 클립보드에 담아 바로 붙여넣는 경로. 이미지가 있을 때만 가로챈다.
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const images = items
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (images.length === 0) return;
+    e.preventDefault();
+    addFiles(images);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const files = Array.from(e.dataTransfer?.files || []);
+    setIsDragOver(false);
+    if (files.length === 0) return;
+    e.preventDefault();
+    addFiles(files);
+  };
 
   return (
     <InputGroup flex={1}>
-      <Box position="relative" width="100%">
+      <Box
+        position="relative"
+        width="100%"
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer?.types || []).includes('Files')) {
+            e.preventDefault();
+            setIsDragOver(true);
+          }
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={handleDrop}
+        outline={isDragOver ? '2px solid' : undefined}
+        outlineColor={isDragOver ? 'purple.300' : undefined}
+        borderRadius="lg"
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+          multiple
+          style={{ display: 'none' }}
+          onChange={handleFilePicked}
+        />
         <IconButton
           aria-label="Attach file"
+          title="이미지 첨부 (붙여넣기·드래그도 가능)"
           variant="ghost"
+          onClick={() => fileInputRef.current?.click()}
           {...footerStyles.footer.attachButton}
         >
           <BsPaperclip size="24" />
@@ -148,6 +204,7 @@ const MessageInput = memo(({
           value={value}
           onChange={onChange}
           onKeyDown={onKeyDown}
+          onPaste={handlePaste}
           onCompositionStart={onCompositionStart}
           onCompositionEnd={onCompositionEnd}
           placeholder={t('footer.typeYourMessage')}
@@ -212,6 +269,8 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
           <VStack flex={1} gap="1.5" align="stretch">
             {/* 아직 미즈키에게 전달되지 않은 입력 — 큐가 비면 렌더되지 않는다 */}
             <QueuedInputBar />
+            {/* 전송 대기 중인 첨부 이미지 — 첨부가 없으면 렌더되지 않는다 */}
+            <AttachmentBar />
             <MessageInput
               value={inputValue}
               onChange={handleInputChange}
