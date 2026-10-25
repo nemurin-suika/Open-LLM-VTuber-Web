@@ -5,7 +5,7 @@ import { Subject } from 'rxjs';
 import { ModelInfo } from '@/context/live2d-config-context';
 import { HistoryInfo } from '@/context/websocket-context';
 import { ConfigFile } from '@/context/character-config-context';
-import { SessionInfo } from '@/context/session-context';
+import { SessionInfo, QueuedInput } from '@/context/session-context';
 import { toaster } from '@/components/ui/toaster';
 
 export interface DisplayText {
@@ -140,6 +140,11 @@ export interface MessageEvent {
   conversation_id?: string;
   /** 도구 승인 요청이 올라온 세션 이름 (tool-approval-request) */
   session_name?: string;
+  // ── 작업 중 세션의 입력 큐잉 ───────────────────────────────────────────────
+  /** 해당 세션의 전체 대기 목록 스냅샷 (session-queue). 빈 배열이면 큐가 비었다는 뜻 */
+  items?: QueuedInput[];
+  /** 세션별 전달 대기 건수 (session-list). 0 인 세션은 키가 없다 */
+  queued_counts?: Record<string, number>;
 }
 
 // Get translation function for error messages

@@ -55,6 +55,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
     setSessions, setActiveSessionId, setSupported: setSessionSupported,
     updateSessionGist, activeSessionId, markUnread, setUnreadIds, setUnreadCounts,
     setRunningIds, markRunning, clearRunning,
+    setSessionQueue, clearSessionQueue, syncQueuedCounts,
   } = useSession();
   // 핸들러가 재구성되지 않아도 최신 활성 세션을 볼 수 있게 ref 로도 들고 있는다.
   const activeSessionIdRef = useRef(activeSessionId);
@@ -481,6 +482,12 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         if (Array.isArray(message.unread_ids)) {
           setUnreadIds(message.unread_ids.filter((id: string) => id !== active));
         }
+        // 작업 중 세션에 쌓인 전달 대기 입력 건수 (0 인 세션은 키가 없다).
+        // 필드 자체가 없는 응답(= 아직 큐잉을 모르는 백엔드)에서는 들고 있던
+        // 큐 상태를 지우지 않는다. 최종 상태는 session-queue 스냅샷이 결정한다.
+        if (message.queued_counts && typeof message.queued_counts === 'object') {
+          syncQueuedCounts(message.queued_counts);
+        }
         if (message.unread_counts && typeof message.unread_counts === 'object') {
           const counts: Record<string, number> = {};
           Object.entries(message.unread_counts).forEach(([sid, n]) => {
@@ -495,6 +502,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           toaster.create({ title: '새 세션을 만들었어', type: 'success', duration: 2000 });
         } else if (message.deleted_id) {
           toaster.create({ title: '세션을 삭제했어', type: 'success', duration: 2000 });
+          // 사라진 세션의 대기 큐 상태도 같이 정리한다.
+          clearSessionQueue(message.deleted_id);
           // 삭제된 세션이 활성이었으면 백엔드가 메인으로 되돌리므로 그쪽 대화를 다시 불러온다.
           setMessages([]);
           setHistoryCursor({ oldestId: null, hasMore: false, loading: true });
@@ -512,6 +521,13 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         else clearRunning(switched);
         break;
       }
+      case 'session-queue': {
+        // 작업 중 세션에 들어온 입력의 전체 대기 목록 스냅샷.
+        // 빈 배열이면 큐가 비었다는 뜻이라 그 세션 큐 상태를 정리한다.
+        const sid = message.session_id || activeSessionIdRef.current;
+        setSessionQueue(sid, Array.isArray(message.items) ? message.items : []);
+        break;
+      }
       case 'session-gist-updated':
         // 미즈키가 턴 끝에 남긴 한 줄 요약 → 레일 호버 툴팁 둘째 줄
         updateSessionGist(message.session_id || 'default', message.gist || '');
@@ -527,7 +543,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         console.warn('Unknown message type:', message.type);
     }
   }, [setSessions, setActiveSessionId, setSessionSupported, updateSessionGist,
-    markUnread, setUnreadIds, setUnreadCounts, setRunningIds, markRunning, clearRunning, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+    markUnread, setUnreadIds, setUnreadCounts, setRunningIds, markRunning, clearRunning,
+    setSessionQueue, clearSessionQueue, syncQueuedCounts, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

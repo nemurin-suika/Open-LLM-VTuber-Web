@@ -17,6 +17,7 @@ import { resetModelToCenter } from '@/utils/model-movement-animator';
 import { LuCrosshair } from 'react-icons/lu';
 import { footerStyles } from './footer-styles';
 import AIStateIndicator from './ai-state-indicator';
+import QueuedInputBar from './queued-input-bar';
 import { useFooter } from '@/hooks/footer/use-footer';
 
 // Type definitions
@@ -208,13 +209,17 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
             </HStack>
           </Box>
 
-          <MessageInput
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyPress}
-            onCompositionStart={handleCompositionStart}
-            onCompositionEnd={handleCompositionEnd}
-          />
+          <VStack flex={1} gap="1.5" align="stretch">
+            {/* 아직 미즈키에게 전달되지 않은 입력 — 큐가 비면 렌더되지 않는다 */}
+            <QueuedInputBar />
+            <MessageInput
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
+            />
+          </VStack>
         </HStack>
       </Box>
     </Box>

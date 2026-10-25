@@ -62,6 +62,37 @@ function UnreadBadge({ count }: { count: number }) {
   );
 }
 
+/**
+ * 전달 대기 중인 입력 개수 배지 (작업 중 세션의 입력 큐잉)
+ *
+ * 그 세션이 턴을 돌고 있는 동안 보낸, 아직 미즈키에게 전달되지 않은 입력 수.
+ * 미확인 배지(오른쪽 위)와 겹치지 않게 오른쪽 아래에 둔다.
+ */
+function QueuedBadge({ count }: { count: number }) {
+  return (
+    <Flex
+      position="absolute"
+      bottom="-4px"
+      right="-6px"
+      align="center"
+      justify="center"
+      minW="18px"
+      h="18px"
+      paddingX="4px"
+      borderRadius="full"
+      bg="whiteAlpha.400"
+      border="2px solid"
+      borderColor="gray.900"
+      zIndex={1}
+      pointerEvents="none"
+    >
+      <Text fontSize="10px" fontWeight="bold" lineHeight="1" color="white">
+        {count > 9 ? '9+' : count}
+      </Text>
+    </Flex>
+  );
+}
+
 function RunningRing() {
   return (
     <Box
@@ -100,7 +131,7 @@ function ActivePill() {
 
 export default function SessionRail(): JSX.Element | null {
   const {
-    sessions, activeSessionId, unreadIds, unreadCounts, runningIds, supported,
+    sessions, activeSessionId, unreadIds, unreadCounts, queuedCounts, runningIds, supported,
     switchTo, createSession, deleteSession, renameSession,
   } = useSessionRail();
 
@@ -162,6 +193,7 @@ export default function SessionRail(): JSX.Element | null {
         const hasUnread = unreadIds.includes(session.id);
         const unreadCount = unreadCounts[session.id] || 0;
         const isRunning = runningIds.includes(session.id);
+        const queuedCount = queuedCounts[session.id] || 0;
         return (
           <Tooltip
             key={session.id}
@@ -185,6 +217,7 @@ export default function SessionRail(): JSX.Element | null {
               {isActive && <ActivePill />}
               {!isActive && hasUnread && unreadCount === 0 && <SessionDot />}
               {!isActive && unreadCount > 0 && <UnreadBadge count={unreadCount} />}
+              {!isActive && queuedCount > 0 && <QueuedBadge count={queuedCount} />}
               {isRunning && <RunningRing />}
               <Flex
                 as="button"

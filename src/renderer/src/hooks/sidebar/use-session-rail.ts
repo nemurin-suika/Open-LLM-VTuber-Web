@@ -16,7 +16,7 @@ import { audioManager } from '@/utils/audio-manager';
  */
 export function useSessionRail() {
   const {
-    sessions, activeSessionId, unreadIds, unreadCounts, runningIds, supported,
+    sessions, activeSessionId, unreadIds, unreadCounts, queuedCounts, runningIds, supported,
     setActiveSessionId, clearUnread, markRunning,
   } = useSession();
   const { sendMessage } = useWebSocket();
@@ -75,6 +75,7 @@ export function useSessionRail() {
     activeSessionId,
     unreadIds,
     unreadCounts,
+    queuedCounts,
     runningIds,
     supported,
     switchTo,
