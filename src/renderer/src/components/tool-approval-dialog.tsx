@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { wsService } from '../services/websocket-service';
+import { useToolApproval } from '../context/tool-approval-context';
 
 interface RuleOption {
   id: string;
@@ -233,7 +234,10 @@ function DiffPreview({
  * wsService를 직접 구독하므로 별도 context 배선이 필요 없다.
  */
 function ToolApprovalDialog(): JSX.Element {
+  const { allPass } = useToolApproval();
   const [queue, setQueue] = useState<ToolApprovalRequest[]>([]);
+  const allPassRef = useRef(allPass);
+  allPassRef.current = allPass;
   // 이미 처리한 request_id — 중복 수신 시 비프음/재추가 방지.
   const seenIds = useRef<Set<string>>(new Set());
 
@@ -254,6 +258,15 @@ function ToolApprovalDialog(): JSX.Element {
           session_id: message.session_id || '',
           session_name: message.session_name || '',
         };
+        if (allPassRef.current) {
+          wsService.sendMessage({
+            type: 'tool-approval-response',
+            request_id: reqId,
+            decision: 'allow',
+            scope: 'once',
+          });
+          return;
+        }
         // 새 승인 요청 도착 → 경고음 (다이얼로그만으론 놓치기 쉬움).
         playApprovalBeep();
         setQueue((q) => [...q, req]);
@@ -261,6 +274,19 @@ function ToolApprovalDialog(): JSX.Element {
     });
     return () => sub.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!allPass || queue.length === 0) return;
+    queue.forEach((request) => {
+      wsService.sendMessage({
+        type: 'tool-approval-response',
+        request_id: request.request_id,
+        decision: 'allow',
+        scope: 'once',
+      });
+    });
+    setQueue([]);
+  }, [allPass, queue]);
 
   const current = queue[0];
 
@@ -281,7 +307,7 @@ function ToolApprovalDialog(): JSX.Element {
     setQueue((q) => q.slice(1));
   };
 
-  if (!current) return <></>;
+  if (!current || allPass) return <></>;
 
   const pending = queue.length - 1;
 

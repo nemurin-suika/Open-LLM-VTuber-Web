@@ -1,6 +1,6 @@
 /* eslint-disable react/require-default-props */
 import {
-  Box, Textarea, IconButton, HStack, VStack,
+  Box, Button, Textarea, IconButton, HStack, VStack,
 } from '@chakra-ui/react';
 import { BsMicFill, BsMicMuteFill, BsPaperclip, BsVolumeUpFill, BsVolumeMuteFill } from 'react-icons/bs';
 import { IoHandRightSharp } from 'react-icons/io5';
@@ -21,6 +21,7 @@ import QueuedInputBar from './queued-input-bar';
 import AttachmentBar from './attachment-bar';
 import { useFooter } from '@/hooks/footer/use-footer';
 import { useAttachments } from '@/context/attachment-context';
+import { useToolApproval } from '@/context/tool-approval-context';
 
 // Type definitions
 interface FooterProps {
@@ -219,6 +220,7 @@ MessageInput.displayName = 'MessageInput';
 
 // Main component
 function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
+  const { allPass, setAllPass } = useToolApproval();
   const {
     inputValue,
     handleInputChange,
@@ -271,13 +273,28 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
             <QueuedInputBar />
             {/* 전송 대기 중인 첨부 이미지 — 첨부가 없으면 렌더되지 않는다 */}
             <AttachmentBar />
-            <MessageInput
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyPress}
-              onCompositionStart={handleCompositionStart}
-              onCompositionEnd={handleCompositionEnd}
-            />
+            <HStack gap={2} align="stretch">
+              <MessageInput
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyPress}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
+              />
+              <Button
+                aria-label="권한 요청 모두 허용"
+                aria-pressed={allPass}
+                title={allPass ? '권한 요청 자동 허용 중' : '권한 요청 시 팝업 표시'}
+                bg={allPass ? 'green.600' : 'gray.600'}
+                color="white"
+                height="80px"
+                px="3"
+                flexShrink={0}
+                onClick={() => setAllPass(!allPass)}
+              >
+                ALL PASS {allPass ? 'ON' : 'OFF'}
+              </Button>
+            </HStack>
           </VStack>
         </HStack>
       </Box>
