@@ -17,6 +17,7 @@ import { useWebSocket } from '@/context/websocket-context';
 import { useSession } from '@/context/session-context';
 import { FaTools, FaCheck, FaTimes } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 
 /** 위로 스크롤 추가 로드로 한 번에 가져올 과거 메시지 개수 */
 const LOAD_MORE_LIMIT = 50;
@@ -123,7 +124,7 @@ function ChatHistoryPanel(): JSX.Element {
                     <Flex key={msg.id} align="center" gap={2} px={2} py={1} opacity={0.7}>
                       <Box w={2} h={2} borderRadius="full" bg="purple.400" flexShrink={0} />
                       <Text fontSize="xs" color="purple.600" fontStyle="italic">
-                        {msg.content}
+                        <LinkifiedText text={msg.content} />
                       </Text>
                     </Flex>
                   );
@@ -199,7 +200,7 @@ function ChatHistoryPanel(): JSX.Element {
                   <ChatMessage
                     key={msg.id}
                     model={{
-                      message: msg.content,
+                      type: 'custom',
                       sentTime: msg.timestamp,
                       sender: msg.role === 'ai'
                         ? (msg.name || aiName)
@@ -210,6 +211,9 @@ function ChatHistoryPanel(): JSX.Element {
                     avatarPosition={msg.role === 'ai' ? 'tl' : 'tr'}
                     avatarSpacer={false}
                   >
+                    <ChatMessage.CustomContent>
+                      <LinkifiedText text={msg.content} />
+                    </ChatMessage.CustomContent>
                     <ChatAvatar>
                       {msg.role === 'ai' ? (
                         msg.avatar ? (
