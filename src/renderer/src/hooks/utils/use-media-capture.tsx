@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useCamera } from '@/context/camera-context';
 import { useScreenCaptureContext } from '@/context/screen-capture-context';
 import { useSystemAudioContext } from '@/context/system-audio-context';
+import { captureMediaFrame } from '@/utils/capture-media-frame';
 import { toaster } from "@/components/ui/toaster";
 import {
   IMAGE_COMPRESSION_QUALITY_KEY,
@@ -16,13 +17,6 @@ import {
   PAST_SCREENSHOT_INTERVAL_KEY,
   DEFAULT_PAST_SCREENSHOT_INTERVAL,
 } from '@/hooks/sidebar/setting/use-general-settings';
-
-// Add type definition for ImageCapture
-declare class ImageCapture {
-  constructor(track: MediaStreamTrack);
-
-  grabFrame(): Promise<ImageBitmap>;
-}
 
 interface ImageData {
   source: 'camera' | 'screen';
@@ -71,29 +65,11 @@ export function useMediaCapture() {
       return null;
     }
 
-    const imageCapture = new ImageCapture(videoTrack);
     try {
-      const bitmap = await imageCapture.grabFrame();
-      const canvas = document.createElement('canvas');
-      let { width, height } = bitmap;
-
-      const maxWidth = getImageMaxWidth();
-      if (maxWidth > 0 && width > maxWidth) {
-        height = (maxWidth / width) * height;
-        width = maxWidth;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        console.error('Failed to get canvas context');
-        return null;
-      }
-
-      ctx.drawImage(bitmap, 0, 0, width, height);
-      const quality = getCompressionQuality();
-      return canvas.toDataURL('image/jpeg', quality);
+      return await captureMediaFrame(stream, {
+        maxWidth: getImageMaxWidth(),
+        quality: getCompressionQuality(),
+      });
     } catch (error) {
       console.error(`Error capturing ${source} frame:`, error);
       toaster.create({
