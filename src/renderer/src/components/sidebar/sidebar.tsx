@@ -13,6 +13,7 @@ import { useSidebar } from '@/hooks/sidebar/use-sidebar';
 import GroupDrawer from './group-drawer';
 import { ModeType } from '@/context/mode-context';
 import { ClaudeUsageBar } from './claude-usage-bar';
+import { CodexUsageBar } from './codex-usage-bar';
 
 // Type definitions
 interface SidebarProps {
@@ -137,6 +138,7 @@ const SidebarContent = memo(({
         isElectron={isElectron}
       />
     </Box>
+    <CodexUsageBar />
     <ClaudeUsageBar />
     <ChatHistoryPanel />
     <BottomTab
