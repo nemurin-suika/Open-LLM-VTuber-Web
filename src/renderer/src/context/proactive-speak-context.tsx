@@ -4,6 +4,7 @@ import {
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useTriggerSpeak } from '@/hooks/utils/use-trigger-speak';
 import { useAiState, AiStateEnum, AiState } from '@/context/ai-state-context';
+import { useViewer } from '@/context/viewer-context';
 
 export type ProactiveMode = 'broadcast' | 'private';
 
@@ -47,10 +48,21 @@ export function ProactiveSpeakProvider({ children }: { children: ReactNode }) {
     'proactiveSpeakSettings',
     defaultSettings,
   );
+  // TODO2 1-10: 자발 발화는 전역 턴 큐를 점유하므로 주인 전용이다.
+  // 손님 브라우저의 localStorage 에 예전 값이 켜져 있어도 여기서 꺼버려서
+  // idle 타이머 자체가 돌지 않게 한다 (백엔드에서도 신호를 버린다).
+  const { isOwnerViewer } = useViewer();
+
   // 기존 localStorage에 mode 같은 신규 필드가 없을 수 있으니 defaults와 merge
   const settings: ProactiveSpeakSettings = useMemo(
-    () => ({ ...defaultSettings, ...rawSettings }),
-    [rawSettings],
+    () => ({
+      ...defaultSettings,
+      ...rawSettings,
+      allowProactiveSpeak: isOwnerViewer
+        ? { ...defaultSettings, ...rawSettings }.allowProactiveSpeak
+        : false,
+    }),
+    [rawSettings, isOwnerViewer],
   );
 
   // 기본값 off 전환 1회 마이그레이션

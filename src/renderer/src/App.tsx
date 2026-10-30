@@ -186,6 +186,9 @@ function App(): JSX.Element {
 function AppWithGlobalStyles(): JSX.Element {
   return (
     <>
+      {/* ViewerProvider 는 순수 상태만 들고 있고, 자발 발화 차단(TODO2 1-10) 때문에
+          ProactiveSpeakProvider 가 접속자 신원을 읽어야 해서 최외곽에 둔다. */}
+      <ViewerProvider>
       <CameraProvider>
         <ScreenCaptureProvider>
           <SystemAudioProvider>
@@ -203,13 +206,11 @@ function AppWithGlobalStyles(): JSX.Element {
                               <SessionProvider>
                                 <AttachmentProvider>
                                   <ToolApprovalProvider>
-                                    <ViewerProvider>
-                                      <WebSocketHandler>
-                                        <Toaster />
-                                        <ToolApprovalDialog />
-                                        <AppContent />
-                                      </WebSocketHandler>
-                                    </ViewerProvider>
+                                    <WebSocketHandler>
+                                      <Toaster />
+                                      <ToolApprovalDialog />
+                                      <AppContent />
+                                    </WebSocketHandler>
                                   </ToolApprovalProvider>
                                 </AttachmentProvider>
                               </SessionProvider>
@@ -227,6 +228,7 @@ function AppWithGlobalStyles(): JSX.Element {
           </SystemAudioProvider>
         </ScreenCaptureProvider>
       </CameraProvider>
+      </ViewerProvider>
     </>
   );
 }

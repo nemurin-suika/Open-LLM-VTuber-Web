@@ -5,6 +5,7 @@ import { settingStyles } from './setting-styles';
 import { useAgentSettings } from '@/hooks/sidebar/setting/use-agent-settings';
 import { Radio, RadioGroup } from '@/components/ui/radio';
 import { ProactiveMode } from '@/context/proactive-speak-context';
+import { useViewer } from '@/context/viewer-context';
 import { SwitchField, NumberField } from './common';
 
 interface AgentProps {
@@ -22,16 +23,21 @@ function Agent({ onSave, onCancel }: AgentProps): JSX.Element {
     handleModeChange,
     handleProactiveInstructionChange,
   } = useAgentSettings({ onSave, onCancel });
+  // TODO2 1-10: 자발 발화는 전역 턴 큐를 먹으므로 주인 전용. 손님에게는 토글을
+  // 숨기고 백엔드(_handle_conversation_trigger)에서도 신호를 버린다.
+  const { isOwnerViewer } = useViewer();
 
   return (
     <Stack {...settingStyles.common.container}>
-      <SwitchField
-        label={t('settings.agent.allowProactiveSpeak')}
-        checked={settings.allowProactiveSpeak}
-        onChange={handleAllowProactiveSpeakChange}
-      />
+      {isOwnerViewer && (
+        <SwitchField
+          label={t('settings.agent.allowProactiveSpeak')}
+          checked={settings.allowProactiveSpeak}
+          onChange={handleAllowProactiveSpeakChange}
+        />
+      )}
 
-      {settings.allowProactiveSpeak && (
+      {isOwnerViewer && settings.allowProactiveSpeak && (
         <>
           <NumberField
             label={t('settings.agent.idleSecondsToSpeak')}
