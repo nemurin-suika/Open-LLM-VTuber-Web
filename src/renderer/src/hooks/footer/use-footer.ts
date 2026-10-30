@@ -18,7 +18,7 @@ export const useFooter = () => {
 
   const { interrupt } = useInterrupt();
   const { startMic, autoStartMicOn } = useVAD();
-  const { handleMicToggle, micOn } = useMicToggle();
+  const { handleMicToggle, micOn, voiceInputSuspended } = useMicToggle();
   const { setAiState, aiState } = useAiState();
   const { sendTriggerSignal } = useTriggerSpeak();
   const { settings } = useProactiveSpeak();
@@ -53,5 +53,6 @@ export const useFooter = () => {
     handleInterrupt,
     handleMicToggle,
     micOn,
+    voiceInputSuspended,
   };
 };

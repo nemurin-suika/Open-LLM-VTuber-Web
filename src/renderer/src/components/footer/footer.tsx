@@ -39,6 +39,7 @@ interface ActionButtonsProps {
   micOn: boolean
   onMicToggle: () => void
   onInterrupt: () => void
+  voiceInputSuspended?: boolean
 }
 
 interface VolumeControlProps {
@@ -107,10 +108,17 @@ const VolumeControl = memo(({ volume, onVolumeChange }: VolumeControlProps) => {
 
 VolumeControl.displayName = 'VolumeControl';
 
-const ActionButtons = memo(({ micOn, onMicToggle, onInterrupt }: ActionButtonsProps) => (
+const ActionButtons = memo(({
+  micOn, onMicToggle, onInterrupt, voiceInputSuspended = false,
+}: ActionButtonsProps) => (
   <HStack gap={2}>
     <IconButton
+      aria-label="음성 입력"
+      title={voiceInputSuspended && !micOn
+        ? '음성 입력은 일시적으로 지원하지 않습니다'
+        : '음성 입력 켜기/끄기'}
       bg={micOn ? 'green.500' : 'red.500'}
+      opacity={voiceInputSuspended && !micOn ? 0.6 : 1}
       {...footerStyles.footer.actionButton}
       onClick={onMicToggle}
     >
@@ -233,6 +241,7 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
     handleInterrupt,
     handleMicToggle,
     micOn,
+    voiceInputSuspended,
   } = useFooter();
 
   const [volume, setVolume] = useState(() => audioManager.getVolume());
@@ -257,6 +266,7 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
                 micOn={micOn}
                 onMicToggle={handleMicToggle}
                 onInterrupt={handleInterrupt}
+                voiceInputSuspended={voiceInputSuspended}
               />
               <VolumeControl volume={volume} onVolumeChange={handleVolumeChange} />
               <IconButton
