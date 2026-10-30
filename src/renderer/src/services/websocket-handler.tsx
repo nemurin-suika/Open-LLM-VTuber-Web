@@ -28,6 +28,7 @@ import { ProactiveSpeakContext } from '@/context/proactive-speak-context';
 import { audioManager } from '@/utils/audio-manager';
 import { useClaudeUsage } from '@/context/claude-usage-context';
 import { useSession } from '@/context/session-context';
+import { useViewer } from '@/context/viewer-context';
 
 function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -45,6 +46,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   } = useConfig();
   const [pendingModelInfo, setPendingModelInfo] = useState<ModelInfo | undefined>(undefined);
   const { setSelfUid, setGroupMembers, setIsOwner } = useGroup();
+  const { setViewer } = useViewer();
   const { startMic, stopMic, autoStartMicOnConvEnd } = useVAD();
   const proactiveSpeakCtx = useContext(ProactiveSpeakContext);
   const autoStartMicOnConvEndRef = useRef(autoStartMicOnConvEnd);
@@ -176,6 +178,10 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         }
         if (message.client_uid) {
           setSelfUid(message.client_uid);
+        }
+        // TODO2 1-10: 접속자 본인 신원. 주인 전용 UI 노출 판단에 쓴다
+        if (message.viewer) {
+          setViewer(message.viewer);
         }
         setPendingModelInfo(message.model_info);
         // setModelInfo(message.model_info);
@@ -544,7 +550,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
     }
   }, [setSessions, setActiveSessionId, setSessionSupported, updateSessionGist,
     markUnread, setUnreadIds, setUnreadCounts, setRunningIds, markRunning, clearRunning,
-    setSessionQueue, clearSessionQueue, syncQueuedCounts, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
+    setSessionQueue, clearSessionQueue, syncQueuedCounts, aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCharacterName, setHumanName, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, setViewer, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, appendProgressMessage, appendImageMessage, interrupt, setBrowserViewData, setUsage, setAgentStatus, setHistoryCursor, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

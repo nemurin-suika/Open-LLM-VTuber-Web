@@ -6,6 +6,7 @@ import { ModelInfo } from '@/context/live2d-config-context';
 import { HistoryInfo } from '@/context/websocket-context';
 import { ConfigFile } from '@/context/character-config-context';
 import { SessionInfo, QueuedInput } from '@/context/session-context';
+import { ViewerInfo } from '@/context/viewer-context';
 import { toaster } from '@/components/ui/toaster';
 
 export interface DisplayText {
@@ -85,6 +86,8 @@ export interface MessageEvent {
   message?: string;
   members?: string[];
   is_owner?: boolean;
+  // TODO2 1-10: 접속자 본인 신원 (set-model-and-conf 에 동봉)
+  viewer?: ViewerInfo;
   client_uid?: string;
   forwarded?: boolean;
   display_text?: DisplayText;

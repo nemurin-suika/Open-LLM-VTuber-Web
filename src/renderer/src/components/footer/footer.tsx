@@ -22,6 +22,7 @@ import AttachmentBar from './attachment-bar';
 import { useFooter } from '@/hooks/footer/use-footer';
 import { useAttachments } from '@/context/attachment-context';
 import { useToolApproval } from '@/context/tool-approval-context';
+import { useViewer } from '@/context/viewer-context';
 
 // Type definitions
 interface FooterProps {
@@ -221,6 +222,8 @@ MessageInput.displayName = 'MessageInput';
 // Main component
 function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
   const { allPass, setAllPass } = useToolApproval();
+  // TODO2 1-10: 도구 승인은 주인만 다룬다. 손님에게는 버튼 자체를 숨긴다
+  const { isOwnerViewer } = useViewer();
   const {
     inputValue,
     handleInputChange,
@@ -281,19 +284,21 @@ function Footer({ isCollapsed = false, onToggle }: FooterProps): JSX.Element {
                 onCompositionStart={handleCompositionStart}
                 onCompositionEnd={handleCompositionEnd}
               />
-              <Button
-                aria-label="권한 요청 모두 허용"
-                aria-pressed={allPass}
-                title={allPass ? '권한 요청 자동 허용 중' : '권한 요청 시 팝업 표시'}
-                bg={allPass ? 'green.600' : 'gray.600'}
-                color="white"
-                height="80px"
-                px="3"
-                flexShrink={0}
-                onClick={() => setAllPass(!allPass)}
-              >
-                ALL PASS {allPass ? 'ON' : 'OFF'}
-              </Button>
+              {isOwnerViewer && (
+                <Button
+                  aria-label="권한 요청 모두 허용"
+                  aria-pressed={allPass}
+                  title={allPass ? '권한 요청 자동 허용 중' : '권한 요청 시 팝업 표시'}
+                  bg={allPass ? 'green.600' : 'gray.600'}
+                  color="white"
+                  height="80px"
+                  px="3"
+                  flexShrink={0}
+                  onClick={() => setAllPass(!allPass)}
+                >
+                  ALL PASS {allPass ? 'ON' : 'OFF'}
+                </Button>
+              )}
             </HStack>
           </VStack>
         </HStack>

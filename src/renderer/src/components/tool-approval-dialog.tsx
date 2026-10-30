@@ -11,6 +11,7 @@ import {
 } from './ui/dialog';
 import { wsService } from '../services/websocket-service';
 import { useToolApproval } from '../context/tool-approval-context';
+import { useViewer } from '../context/viewer-context';
 
 interface RuleOption {
   id: string;
@@ -235,6 +236,8 @@ function DiffPreview({
  */
 function ToolApprovalDialog(): JSX.Element {
   const { allPass } = useToolApproval();
+  // TODO2 1-10: 손님에게는 승인 팝업 자체를 띄우지 않는다 (백엔드도 보내지 않음)
+  const { isOwnerViewer } = useViewer();
   const [queue, setQueue] = useState<ToolApprovalRequest[]>([]);
   const allPassRef = useRef(allPass);
   allPassRef.current = allPass;
@@ -307,7 +310,7 @@ function ToolApprovalDialog(): JSX.Element {
     setQueue((q) => q.slice(1));
   };
 
-  if (!current || allPass) return <></>;
+  if (!current || allPass || !isOwnerViewer) return <></>;
 
   const pending = queue.length - 1;
 

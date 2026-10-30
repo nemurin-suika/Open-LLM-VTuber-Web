@@ -32,6 +32,7 @@ import Subtitle from "./components/canvas/subtitle";
 import { ModeProvider, useMode } from "./context/mode-context";
 import ToolApprovalDialog from "./components/tool-approval-dialog";
 import { ToolApprovalProvider } from "./context/tool-approval-context";
+import { ViewerProvider } from "./context/viewer-context";
 import { ClaudeUsageProvider } from "./context/claude-usage-context";
 import { SessionProvider, useSession } from "./context/session-context";
 import { AttachmentProvider } from "./context/attachment-context";
@@ -202,11 +203,13 @@ function AppWithGlobalStyles(): JSX.Element {
                               <SessionProvider>
                                 <AttachmentProvider>
                                   <ToolApprovalProvider>
-                                    <WebSocketHandler>
-                                      <Toaster />
-                                      <ToolApprovalDialog />
-                                      <AppContent />
-                                    </WebSocketHandler>
+                                    <ViewerProvider>
+                                      <WebSocketHandler>
+                                        <Toaster />
+                                        <ToolApprovalDialog />
+                                        <AppContent />
+                                      </WebSocketHandler>
+                                    </ViewerProvider>
                                   </ToolApprovalProvider>
                                 </AttachmentProvider>
                               </SessionProvider>
