@@ -78,6 +78,9 @@ export const Live2D = memo(
     // }, [setExpression]);
 
     const handlePointerDown = (e: React.PointerEvent) => {
+      // Touch input is handled by the dedicated touch handlers in
+      // useLive2DModel; letting pointerdown through would double-handle it.
+      if (e.pointerType === "touch") return;
       handlers.onMouseDown(e);
     };
 
@@ -104,6 +107,9 @@ export const Live2D = memo(
           overflow: "hidden",
           position: "relative",
           cursor: isDragging ? "grabbing" : "default",
+          // Block single-finger browser panning so touch drag reaches us,
+          // while still allowing two-finger pinch zoom of the page.
+          touchAction: "pinch-zoom",
         }}
         onPointerDown={handlePointerDown}
         onContextMenu={handleContextMenu}
@@ -118,6 +124,7 @@ export const Live2D = memo(
             pointerEvents: isPet && forceIgnoreMouse ? "none" : "auto",
             display: "block",
             cursor: isDragging ? "grabbing" : "default",
+            touchAction: "pinch-zoom",
           }}
         />
       </div>

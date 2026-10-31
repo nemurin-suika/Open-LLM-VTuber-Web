@@ -29,6 +29,7 @@ interface Position {
 // Thresholds for tap vs drag detection
 const TAP_DURATION_THRESHOLD_MS = 200; // Max duration for a tap
 const DRAG_DISTANCE_THRESHOLD_PX = 5; // Min distance to be considered a drag
+const TOUCH_COMPAT_SUPPRESS_MS = 700; // Ignore mouse events synthesized after a touch
 
 const LIVE2D_POSITION_KEY = 'live2d_position';
 
@@ -114,6 +115,10 @@ export const useLive2DModel = ({
   const mouseDownTimeRef = useRef<number>(0);
   const mouseDownPosRef = useRef<Position>({ x: 0, y: 0 }); // Screen coords at mousedown
   const isPotentialTapRef = useRef<boolean>(false); // Flag for ongoing potential tap/drag action
+  // Touch support: track the finger that owns the current drag, and suppress
+  // the compatibility mouse events that browsers fire right after a touch.
+  const activeTouchIdRef = useRef<number | null>(null);
+  const lastTouchEndRef = useRef<number>(0);
   // ---
 
   useEffect(() => {
@@ -337,7 +342,8 @@ export const useLive2DModel = ({
     return { x, y };
   }, [getCanvasScale]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent, fromTouch = false) => {
+    if (!fromTouch && Date.now() - lastTouchEndRef.current < TOUCH_COMPAT_SUPPRESS_MS) return;
     const adapter = (window as any).getLAppAdapter?.();
     if (!adapter || !canvasRef.current) return;
 
@@ -376,7 +382,9 @@ export const useLive2DModel = ({
     }
   }, [canvasRef, modelInfo]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent, fromTouch = false) => {
+    if (!fromTouch && (activeTouchIdRef.current !== null
+      || Date.now() - lastTouchEndRef.current < TOUCH_COMPAT_SUPPRESS_MS)) return;
     const adapter = (window as any).getLAppAdapter?.();
     const view = LAppDelegate.getInstance().getView();
     const model = adapter?.getModel();
@@ -468,7 +476,8 @@ export const useLive2DModel = ({
     // --- End Pet Hover Logic ---
   }, [isPet, isDragging, electronApi, canvasRef]);
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+  const handleMouseUp = useCallback((e: React.MouseEvent, fromTouch = false) => {
+    if (!fromTouch && Date.now() - lastTouchEndRef.current < TOUCH_COMPAT_SUPPRESS_MS) return;
     const adapter = (window as any).getLAppAdapter?.();
     const model = adapter?.getModel();
     const view = LAppDelegate.getInstance().getView();
@@ -537,6 +546,61 @@ export const useLive2DModel = ({
       electronApi.ipcRenderer.send('update-component-hover', 'live2d-model', false);
     }
   }, [isPet, isDragging, electronApi, handleMouseUp]);
+
+  // --- Touch support (mobile browsers) ---
+  // Mobile browsers only synthesize mouse events for taps, never for drags,
+  // so single-finger drag has to be wired through the touch events directly.
+  // Multi-touch is left alone so the browser can still pinch-zoom the page.
+  const touchAsMouse = (t: React.Touch) => ({
+    clientX: t.clientX,
+    clientY: t.clientY,
+  } as unknown as React.MouseEvent);
+
+  const findActiveTouch = useCallback((list: React.TouchList) => {
+    const id = activeTouchIdRef.current;
+    if (id === null) return null;
+    for (let i = 0; i < list.length; i += 1) {
+      if (list[i].identifier === id) return list[i];
+    }
+    return null;
+  }, []);
+
+  const cancelTouchDrag = useCallback(() => {
+    activeTouchIdRef.current = null;
+    isPotentialTapRef.current = false;
+    setIsDragging(false);
+    lastTouchEndRef.current = Date.now();
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) {
+      cancelTouchDrag();
+      return;
+    }
+    const touch = e.touches[0];
+    activeTouchIdRef.current = touch.identifier;
+    handleMouseDown(touchAsMouse(touch), true);
+  }, [cancelTouchDrag, handleMouseDown]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (activeTouchIdRef.current === null) return;
+    if (e.touches.length > 1) {
+      cancelTouchDrag();
+      return;
+    }
+    const touch = findActiveTouch(e.touches);
+    if (!touch) return;
+    handleMouseMove(touchAsMouse(touch), true);
+  }, [cancelTouchDrag, findActiveTouch, handleMouseMove]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (activeTouchIdRef.current === null) return;
+    const touch = findActiveTouch(e.changedTouches);
+    activeTouchIdRef.current = null;
+    lastTouchEndRef.current = Date.now();
+    if (touch) handleMouseUp(touchAsMouse(touch), true);
+  }, [findActiveTouch, handleMouseUp]);
+  // --- End Touch support ---
 
   useEffect(() => {
     if (!isPet && electronApi && isHoveringModelRef.current) {
@@ -675,6 +739,10 @@ Live2DDebug.playRandomMotion("")  // Play random motion from default group
       onMouseMove: handleMouseMove,
       onMouseUp: handleMouseUp,
       onMouseLeave: handleMouseLeave,
+      onTouchStart: handleTouchStart,
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+      onTouchCancel: handleTouchEnd,
     },
   };
 };
