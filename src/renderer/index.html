@@ -2,6 +2,13 @@
 <html>
   <head>
     <meta charset="UTF-8" />
+    <!-- 이 태그가 없으면 폰 브라우저가 980px 가상 화면으로 그린 뒤 통째로
+         축소해 글씨가 깨알만 해진다. viewport-fit=cover 는 노치·홈바 영역까지
+         쓰면서 safe-area-inset 을 쓸 수 있게 해준다. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>Open-LLM-Vtuber</title>
   </head>
 

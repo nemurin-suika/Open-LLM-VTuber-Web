@@ -37,11 +37,16 @@ import { ClaudeUsageProvider } from "./context/claude-usage-context";
 import { SessionProvider, useSession } from "./context/session-context";
 import { AttachmentProvider } from "./context/attachment-context";
 import SessionRail, { SESSION_RAIL_WIDTH } from "./components/sidebar/session-rail";
+import MobileShell from "./components/mobile/mobile-shell";
+import { useIsMobile } from "./hooks/utils/use-is-mobile";
 
 function AppContent(): JSX.Element {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
   const { mode } = useMode();
+  // 폰 폭에서는 데스크탑 2단 레이아웃 대신 전용 셸로 갈아탄다.
+  // 캐릭터를 화면 전체에 깔고 채팅·입력을 반투명 레이어로 올리는 구성.
+  const isMobile = useIsMobile();
   const isElectron = window.api !== undefined;
   const live2dContainerRef = useRef<HTMLDivElement>(null);
   // 다중 세션 레일(TODO19 2단계)은 letta agent 에서만 보인다.
@@ -96,6 +101,16 @@ function AppContent(): JSX.Element {
     };
   };
 
+  // 모바일 셸용 — 사이드바가 없으니 화면 전체를 캐릭터에 내준다.
+  const live2dMobileStyle = {
+    ...live2dBaseStyle,
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    zIndex: 5,
+  };
+
   // Define styles specifically for the "pet" mode
   const live2dPetStyle = {
     ...live2dBaseStyle,
@@ -112,15 +127,20 @@ function AppContent(): JSX.Element {
         ref={live2dContainerRef}
         // Apply styles conditionally based on mode
         // Use the function to get dynamic responsive styles for window mode
-        {...(mode === "window"
-          ? getResponsiveLive2DWindowStyle(showSidebar)
-          : live2dPetStyle)}
+        {...(() => {
+          if (mode !== "window") return live2dPetStyle;
+          if (isMobile) return live2dMobileStyle;
+          return getResponsiveLive2DWindowStyle(showSidebar);
+        })()}
       >
         <Live2D />
       </Box>
 
+      {/* 모바일 전용 셸 — 배경·채팅·입력줄을 전부 오버레이로 올린다 */}
+      {mode === "window" && isMobile && <MobileShell />}
+
       {/* Conditional Rendering of Window UI */}
-      {mode === "window" && (
+      {mode === "window" && !isMobile && (
         <>
           {isElectron && <TitleBar />}
           {/* Apply styles by spreading */}

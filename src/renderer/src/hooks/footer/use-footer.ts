@@ -11,6 +11,7 @@ export const useFooter = () => {
   const {
     inputText: inputValue,
     setInputText: handleChange,
+    handleSend,
     handleKeyPress: handleKey,
     handleCompositionStart,
     handleCompositionEnd,
@@ -47,6 +48,8 @@ export const useFooter = () => {
   return {
     inputValue,
     handleInputChange,
+    // 모바일 셸은 엔터 대신 전송 버튼을 쓰므로 직접 호출할 수 있게 내보낸다.
+    handleSend,
     handleKeyPress,
     handleCompositionStart,
     handleCompositionEnd,
