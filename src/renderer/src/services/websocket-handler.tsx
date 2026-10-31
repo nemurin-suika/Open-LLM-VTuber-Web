@@ -275,7 +275,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
           const cleaned = restored.map((msg) => (
             // 중간 진행 알림은 실시간 표시와 같은 원문을 그대로 보여준다
             // (대괄호가 섞여 있어도 지워지지 않도록 태그 제거를 건너뛴다).
-            msg.content && msg.type !== 'progress_update'
+            msg.content && msg.type !== 'progress_update' && msg.type !== 'image_display'
               ? { ...msg, content: stripLLMTags(msg.content) }
               : msg
           ));
@@ -452,6 +452,11 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         }
         break;
       case 'image_display':
+        // 다중 세션: 다른 세션에서 띄운 이미지는 지금 화면에 끼우지 않는다(알림 처리와 동일).
+        if (message.session_id && message.session_id !== activeSessionIdRef.current) {
+          markUnread(message.session_id);
+          break;
+        }
         if (message.image_base64 && message.mime_type) {
           appendImageMessage(message.image_base64, message.mime_type, message.label || message.image_label);
         }
