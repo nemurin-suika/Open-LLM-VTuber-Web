@@ -16,6 +16,14 @@ const MAX_SCALE = 100.0;
 const EASING_FACTOR = 0.3; // Controls animation smoothness
 const WHEEL_SCALE_STEP = 0.5; // Scale change per wheel tick
 const DEFAULT_SCALE = 1.0; // Default scale if not specified
+const PINCH_MIN_DIST = 24; // Ignore degenerate two-finger distances (px)
+
+/** Distance between the first two active touch points. */
+const touchDistance = (touches: TouchList): number => {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+};
 
 interface UseLive2DResizeProps {
   containerRef: RefObject<HTMLDivElement>;
@@ -146,6 +154,68 @@ export const useLive2DResize = ({
   }, [modelInfo?.scrollToResize, animateEase]);
 
   /**
+   * Commits a new target scale: starts the easing loop and debounce-persists it.
+   * Shared by wheel (desktop) and pinch (touch) paths.
+   */
+  const commitTargetScale = useCallback((rawScale: number) => {
+    const newTargetScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, rawScale));
+    targetScaleRef.current = newTargetScale;
+
+    if (!isAnimatingRef.current) {
+      isAnimatingRef.current = true;
+      animationFrameRef.current = requestAnimationFrame(animateEase);
+    }
+
+    if (saveScaleTimerRef.current) clearTimeout(saveScaleTimerRef.current);
+    saveScaleTimerRef.current = setTimeout(() => {
+      localStorage.setItem(LIVE2D_SCALE_KEY, JSON.stringify(newTargetScale));
+      setBaseScale(newTargetScale); // keep movement animator in sync
+    }, 600);
+  }, [animateEase]);
+
+  /**
+   * Two-finger pinch to resize the model on touch devices.
+   * The wrapper/canvas sets touch-action: none so the browser's own page zoom
+   * does not consume the gesture; we map finger distance ratio onto model scale.
+   */
+  const pinchStartRef = useRef<{ dist: number; scale: number } | null>(null);
+
+  const handleTouchStartPinch = useCallback((e: TouchEvent) => {
+    if (!modelInfo?.scrollToResize) return;
+    if (e.touches.length !== 2) {
+      pinchStartRef.current = null;
+      return;
+    }
+    const dist = touchDistance(e.touches);
+    if (dist < PINCH_MIN_DIST) return;
+    pinchStartRef.current = { dist, scale: lastScaleRef.current };
+    e.preventDefault();
+  }, [modelInfo?.scrollToResize]);
+
+  const handleTouchMovePinch = useCallback((e: TouchEvent) => {
+    const start = pinchStartRef.current;
+    if (!start) return;
+    if (e.touches.length !== 2) {
+      pinchStartRef.current = null;
+      return;
+    }
+    const dist = touchDistance(e.touches);
+    if (dist < PINCH_MIN_DIST) return;
+    e.preventDefault();
+    commitTargetScale(start.scale * (dist / start.dist));
+  }, [commitTargetScale]);
+
+  const handleTouchEndPinch = useCallback((e: TouchEvent) => {
+    if (e.touches.length < 2) pinchStartRef.current = null;
+  }, []);
+
+  /** Safari pinch gesture events would zoom the page; suppress them. */
+  const handleGesture = useCallback((e: Event) => {
+    if (!modelInfo?.scrollToResize) return;
+    e.preventDefault();
+  }, [modelInfo?.scrollToResize]);
+
+  /**
    * Pre-process container resize
    * Preserve aspect ratio temporarily before actual change
    */
@@ -240,12 +310,33 @@ export const useLive2DResize = ({
     const canvasElement = canvasRef.current;
     if (canvasElement) {
       canvasElement.addEventListener('wheel', handleWheel, { passive: false });
+      // Native (non-React) listeners so preventDefault actually applies:
+      // React attaches touch handlers passively at the root.
+      canvasElement.addEventListener('touchstart', handleTouchStartPinch, { passive: false });
+      canvasElement.addEventListener('touchmove', handleTouchMovePinch, { passive: false });
+      canvasElement.addEventListener('touchend', handleTouchEndPinch);
+      canvasElement.addEventListener('touchcancel', handleTouchEndPinch);
+      canvasElement.addEventListener('gesturestart', handleGesture, { passive: false });
+      canvasElement.addEventListener('gesturechange', handleGesture, { passive: false });
       return () => {
         canvasElement.removeEventListener('wheel', handleWheel);
+        canvasElement.removeEventListener('touchstart', handleTouchStartPinch);
+        canvasElement.removeEventListener('touchmove', handleTouchMovePinch);
+        canvasElement.removeEventListener('touchend', handleTouchEndPinch);
+        canvasElement.removeEventListener('touchcancel', handleTouchEndPinch);
+        canvasElement.removeEventListener('gesturestart', handleGesture);
+        canvasElement.removeEventListener('gesturechange', handleGesture);
       };
     }
     return undefined;
-  }, [handleWheel, canvasRef]);
+  }, [
+    handleWheel,
+    canvasRef,
+    handleTouchStartPinch,
+    handleTouchMovePinch,
+    handleTouchEndPinch,
+    handleGesture,
+  ]);
 
   // Clean up animations on unmount
   useEffect(() => () => {
